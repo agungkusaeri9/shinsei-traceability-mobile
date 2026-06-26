@@ -3,6 +3,8 @@ import { View, StyleSheet } from 'react-native';
 import Input from '../../../components/Input';
 import Button from '../../../components/Button';
 import { LoginFormValues, LoginFormErrors } from '../types';
+import InputLabel from '../../../components/Input/InputLabel';
+import { User } from 'lucide-react-native/icons';
 
 interface LoginFormProps {
   form: LoginFormValues;
@@ -21,24 +23,21 @@ const LoginForm: React.FC<LoginFormProps> = ({
 }) => {
   return (
     <View style={styles.container}>
-      <Input
+      <InputLabel
         label="Username"
-        placeholder="Masukkan username Anda"
+        placeholder="Enter username"
         value={form.username}
         onChangeText={text => onChange('username', text)}
-        error={errors.username}
-        autoCapitalize="none"
-        autoComplete="username"
+        leftIcon={<User size={20} color="#94A3B8" />}
       />
 
-      <Input
+      <InputLabel
         label="Password"
-        placeholder="Masukkan password Anda"
+        placeholder="Enter password"
         value={form.password}
         onChangeText={text => onChange('password', text)}
-        error={errors.password}
-        isPassword
-        autoComplete="password"
+        leftIcon={<User size={20} color="#94A3B8" />}
+        secureTextEntry
       />
 
       <Button

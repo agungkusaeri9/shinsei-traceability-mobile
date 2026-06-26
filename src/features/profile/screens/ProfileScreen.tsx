@@ -8,22 +8,21 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { AppStackParamList } from '../../../types';
+import { AppTabParamList } from '../../../types';
 import ProfileHeader from '../components/ProfileHeader';
 import { useAuth } from '../../../hooks/useAuth';
 import Modal from '../../../components/Modal';
 import Button from '../../../components/Button';
+import { Cog, Info, User } from 'lucide-react-native/icons';
 
 type Props = {
-  navigation: NativeStackNavigationProp<AppStackParamList, 'Profile'>;
+  navigation: NativeStackNavigationProp<AppTabParamList, 'Profile'>;
 };
 
 const menuItems = [
-  { id: 'account', label: 'Pengaturan Akun', icon: '⚙️' },
-  { id: 'notification', label: 'Notifikasi', icon: '🔔' },
-  { id: 'privacy', label: 'Privasi & Keamanan', icon: '🔒' },
-  { id: 'help', label: 'Bantuan & Dukungan', icon: '❓' },
-  { id: 'about', label: 'Tentang Aplikasi', icon: 'ℹ️' },
+  { id: 'account', label: 'Akun', icon: <User size={20} color="#111827" /> },
+  { id: 'setting', label: 'Pengaturan', icon: <Cog size={20} color="#111827" /> },
+  { id: 'about', label: 'Tentang Aplikasi', icon: <Info size={20} color="#111827" /> },
 ];
 
 const ProfileScreen: React.FC<Props> = ({ navigation }) => {
@@ -32,23 +31,14 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
 
   const mockUser = user ?? {
     id: '1',
-    name: 'Agung Kusaeri',
-    email: 'agung.kusaeri@shinsei.co.id',
-    role: 'Administrator',
+    name: 'User',
+    username: 'user',
+    role: 'user',
   };
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#0D1B2A" />
-
-      {/* Header */}
-      <View style={styles.topBar}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backBtn}>← Kembali</Text>
-        </TouchableOpacity>
-        <Text style={styles.topBarTitle}>Profil</Text>
-        <View style={{ width: 70 }} />
-      </View>
 
       <ScrollView
         showsVerticalScrollIndicator={false}

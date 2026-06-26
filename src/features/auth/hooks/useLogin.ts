@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { LoginFormValues, LoginFormErrors } from '../types';
 import { loginService } from '../services/authService';
 import { useAuth } from '../../../hooks/useAuth';
+import { showError } from '../../../services/toastService';
 
 export const useLogin = () => {
   const { setAuth, isLoading, setLoading } = useAuth();
@@ -44,9 +45,9 @@ export const useLogin = () => {
       setAuth(data.user, data.token);
       return true;
     } catch (error: any) {
-      console.log('Login error:', error?.response?.data || error.message);
       const msg = error?.response?.data?.message || 'Login gagal. Coba lagi.';
-      setErrors({ username: msg });
+      showError(msg);
+      // setErrors({ username: msg });
       return false;
     } finally {
       setLoading(false);

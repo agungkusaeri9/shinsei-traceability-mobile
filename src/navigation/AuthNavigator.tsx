@@ -14,7 +14,15 @@ const AuthNavigator: React.FC = () => {
       initialRouteName="Login">
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-      <Stack.Screen name="Settings" component={SettingsScreen} />
+      <Stack.Screen
+        name="Settings"
+        component={SettingsScreen}
+        options={{
+          title: 'Settings',
+          headerShown: true,
+          headerBackTitle: 'Back',
+        }}
+      />
     </Stack.Navigator>
   );
 };

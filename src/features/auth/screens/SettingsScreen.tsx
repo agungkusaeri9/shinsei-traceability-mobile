@@ -39,10 +39,7 @@ const SettingsScreen: React.FC<Props> = ({ navigation }) => {
 
   const handleTest = async () => {
     if (!baseUrl.trim()) {
-      ToastAndroid.show(
-        'Base URL tidak boleh kosong',
-        ToastAndroid.SHORT
-      );
+      showError('Base URL tidak boleh kosong');
       return;
     }
 
@@ -89,9 +86,9 @@ const SettingsScreen: React.FC<Props> = ({ navigation }) => {
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScrollView contentContainerStyle={styles.scrollContent}>
-          <View style={styles.header}>
+          {/* <View style={styles.header}>
             <Text style={styles.title}>Pengaturan</Text>
-          </View>
+          </View> */}
 
           <View style={styles.formContainer}>
             <Text style={styles.label}>Base URL</Text>

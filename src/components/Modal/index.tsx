@@ -55,7 +55,7 @@ const Modal: React.FC<ModalProps> = ({
                   <Button
                     title={cancelText}
                     onPress={onClose}
-                    variant="outline"
+                    variant="secondary"
                     style={styles.actionBtn}
                   />
                   <Button

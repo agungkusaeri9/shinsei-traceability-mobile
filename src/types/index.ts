@@ -3,7 +3,7 @@
 export interface User {
   id: string;
   name: string;
-  email: string;
+  username: string;
   role: string;
   avatar?: string;
 }
@@ -43,8 +43,10 @@ export type AuthStackParamList = {
   Settings: undefined;
 };
 
-export type AppStackParamList = {
+export type AppTabParamList = {
   Dashboard: undefined;
+  PartAcceptance: undefined;
+  MaterialFeeding: undefined;
   Profile: undefined;
 };
 

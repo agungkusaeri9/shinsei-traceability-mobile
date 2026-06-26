@@ -14,7 +14,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '../../../types';
 import LoginForm from '../components/LoginForm';
 import { useLogin } from '../hooks/useLogin';
-import { Settings } from 'lucide-react-native/icons';
+import { Lock, Settings } from 'lucide-react-native/icons';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Login'>;
@@ -48,8 +48,12 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.header}>
-            <Text style={styles.logoText}>Shinsei TMS</Text>
-            <Text style={styles.tagline}>Traceability Management System</Text>
+            <View style={styles.logoContainer}>
+              <Lock size={48} color="#FFFFFF" />
+            </View>
+
+            <Text style={styles.title}>Shinsei Traceability</Text>
+            <Text style={styles.tagline}>Sign in to your account</Text>
           </View>
 
           <View style={styles.formContainer}>
@@ -78,15 +82,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   topHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    flexDirection: 'column',
+    alignItems: 'flex-end',
+    // justifyContent: 'space-between',
+    // paddingHorizontal: 16,
+    // paddingVertical: 12,
   },
-  logoContainer: {
-    alignItems: 'center',
-  },
+
   logoTextSmall: {
     fontSize: 16,
     fontWeight: '700',
@@ -109,7 +111,7 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    marginBottom: 48,
+    marginBottom: 40,
   },
   logoText: {
     fontSize: 32,
@@ -117,11 +119,29 @@ const styles = StyleSheet.create({
     color: '#6366F1',
     letterSpacing: -0.5,
   },
+
+  logoContainer: {
+    width: 70, // w-24
+    height: 70, // h-24
+    borderRadius: 48,
+    backgroundColor: '#3B82F6', // blue-500
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  title: {
+    fontSize: 26,
+    lineHeight: 20,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
   tagline: {
     fontSize: 14,
+    lineHeight: 20,
     color: '#64748B',
-    marginTop: 8,
-    letterSpacing: 0.3,
+    textAlign: 'center',
   },
   formContainer: {
     width: '100%',
