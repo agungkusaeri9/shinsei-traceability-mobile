@@ -43,12 +43,21 @@ export type AuthStackParamList = {
   Settings: undefined;
 };
 
+import { RegisteredPart } from '../features/warehouse/types';
+
 export type AppTabParamList = {
   Dashboard: undefined;
   PartAcceptance: undefined;
   MaterialFeeding: undefined;
+  Area: undefined;
+  Warehouse: undefined;
+  Register: undefined;
+  StockIn: { registeredData?: RegisteredPart } | undefined;
+  StockOut: undefined;
   Profile: undefined;
 };
+
+export type { RegisteredPart };
 
 export enum ToastType {
   Success = 'success',
