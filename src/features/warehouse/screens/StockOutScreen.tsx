@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   FlatList,
+  ActivityIndicator,
 } from 'react-native';
 import {
   ArrowUpFromLine,
@@ -16,10 +17,10 @@ import {
   CheckCircle2,
   X,
 } from 'lucide-react-native';
-import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 
-import { AppTabParamList } from '../../../types';
+import { WarehouseStackParamList } from '../../../types';
 import { colors, shadows } from '../../../theme';
 import Button from '../../../components/Button';
 import {
@@ -27,21 +28,21 @@ import {
   showError,
   showInfo,
 } from '../../../services/toastService';
-import type { WorkOrderDetail } from '../types';
+import type { Order } from '../types';
 
 // Components
 import WarehouseHeader from '../components/WarehouseHeader';
 import InfoBanner from '../components/InfoBanner';
 import SearchableDropdown from '../components/SearchableDropdown';
-import WorkOrderDetailCard from '../components/WorkOrderDetailCard';
 import StkScanProgress from '../components/StkScanProgress';
 import StkScanItem from '../components/StkScanItem';
-
-// Dummy data
-import { DUMMY_WORK_ORDERS, DUMMY_WO_DETAIL } from '../data/dummyWorkOrders';
+import {
+  fetchOrders,
+  submitMaterialFeeding,
+} from '../services/warehouseService';
 
 type Props = {
-  navigation: BottomTabNavigationProp<AppTabParamList, 'StockOut'>;
+  navigation: NativeStackNavigationProp<WarehouseStackParamList, 'StockOut'>;
 };
 
 type Step = 'select_wo' | 'confirm_wo' | 'scanning' | 'finished';
@@ -50,10 +51,42 @@ const StockOutScreen: React.FC<Props> = ({ navigation }) => {
   const barcodeRef = useRef<TextInput>(null);
 
   const [step, setStep] = useState<Step>('select_wo');
-  const [selectedWO, setSelectedWO] = useState('');
-  const [woDetail, setWoDetail] = useState<WorkOrderDetail | null>(null);
-  const [scannedStks, setScannedStks] = useState<Set<string>>(new Set());
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loadingOrders, setLoadingOrders] = useState(false);
+  const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [scannedPartBatchIds, setScannedPartBatchIds] = useState<Set<number>>(
+    new Set(),
+  );
   const [stkInput, setStkInput] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Refetch orders when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      if (step === 'select_wo') {
+        loadOrders();
+      }
+    }, [step]),
+  );
+
+  const loadOrders = async () => {
+    setLoadingOrders(true);
+    try {
+      const data = await fetchOrders();
+      setOrders(Array.isArray(data) ? data : []);
+    } catch (error: any) {
+      showError(error?.response?.data?.message || 'Gagal memuat data Order');
+    } finally {
+      setLoadingOrders(false);
+    }
+  };
+
+  // Build dropdown options from orders
+  const orderDropdownOptions = orders.map(o => ({
+    id: String(o.id),
+    label: `${o.orderNumber} - ${o.customer?.name ?? 'N/A'}`,
+  }));
 
   const focusScanner = useCallback(() => {
     requestAnimationFrame(() => {
@@ -70,74 +103,106 @@ const StockOutScreen: React.FC<Props> = ({ navigation }) => {
     }, [step, focusScanner]),
   );
 
-  const handleFetchWO = () => {
-    if (!selectedWO) {
-      showError('Pilih Work Order terlebih dahulu');
-      return;
-    }
-    const detail = DUMMY_WO_DETAIL[selectedWO];
-    if (detail) {
-      setWoDetail(detail);
-      setScannedStks(new Set());
-      setStep('confirm_wo');
-      showInfo(`Data ${selectedWO} berhasil dimuat`, 'Work Order Ditemukan');
-    } else {
-      showError('Work Order tidak ditemukan');
+  const handleSelectOrder = (id: string) => {
+    const orderId = Number(id);
+    setSelectedOrderId(orderId);
+    const order = orders.find(o => o.id === orderId);
+    if (order) {
+      setSelectedOrder(order);
     }
   };
 
+  const handleFetchOrder = () => {
+    if (!selectedOrder) {
+      showError('Pilih Order terlebih dahulu');
+      return;
+    }
+    if (!selectedOrder.orderItems || selectedOrder.orderItems.length === 0) {
+      showError('Order ini tidak memiliki item STK');
+      return;
+    }
+    setScannedPartBatchIds(new Set());
+    setStep('confirm_wo');
+  };
+
+  // Get STK numbers from order items
+  const stkNumbers =
+    selectedOrder?.orderItems
+      .map(item => item.partBatch?.stkNumber)
+      .filter(Boolean) ?? [];
+
   const handleScanStk = (value: string) => {
     const trimmed = value.trim();
-    if (!trimmed || !woDetail) {
+    if (!trimmed || !selectedOrder) {
       focusScanner();
       return;
     }
 
-    if (woDetail.stkNumbers.includes(trimmed)) {
-      if (scannedStks.has(trimmed)) {
+    // Find matching order item by stkNumber
+    const matchedItem = selectedOrder.orderItems.find(
+      item => item.partBatch?.stkNumber === trimmed,
+    );
+
+    if (matchedItem) {
+      if (scannedPartBatchIds.has(matchedItem.partBatch.id)) {
         showInfo(`${trimmed} sudah di-scan sebelumnya`);
       } else {
-        const newScanned = new Set(scannedStks);
-        newScanned.add(trimmed);
-        setScannedStks(newScanned);
+        const newScanned = new Set(scannedPartBatchIds);
+        newScanned.add(matchedItem.partBatch.id);
+        setScannedPartBatchIds(newScanned);
         showSuccess(`${trimmed} berhasil di-scan`);
       }
     } else {
-      showError(`${trimmed} tidak terdaftar dalam Work Order ini`);
+      showError(`${trimmed} tidak terdaftar dalam Order ini`);
     }
 
     setStkInput('');
     focusScanner();
   };
 
-  const handleFinish = () => {
-    if (!woDetail) return;
-    if (scannedStks.size < woDetail.stkNumbers.length) {
+  const handleSubmit = async () => {
+    if (!selectedOrder) return;
+    if (scannedPartBatchIds.size < stkNumbers.length) {
       showError(
         `Masih ada ${
-          woDetail.stkNumbers.length - scannedStks.size
+          stkNumbers.length - scannedPartBatchIds.size
         } STK yang belum di-scan`,
       );
       return;
     }
-    showSuccess(
-      `Stock Out ${selectedWO} berhasil diproses`,
-      'Stock Out Berhasil',
-    );
-    setStep('finished');
+
+    setIsSubmitting(true);
+    try {
+      await submitMaterialFeeding({
+        orderId: selectedOrder.id,
+        processedDate: new Date().toISOString(),
+        materialFeedingItems: Array.from(scannedPartBatchIds).map(id => ({
+          partBatchId: id,
+        })),
+      });
+      showSuccess(
+        `Stock Out ${selectedOrder.orderNumber} berhasil diproses`,
+        'Stock Out Berhasil',
+      );
+      setStep('finished');
+    } catch (error: any) {
+      showError(error?.response?.data?.message || 'Gagal stock out');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleReset = () => {
     setStep('select_wo');
-    setSelectedWO('');
-    setWoDetail(null);
-    setScannedStks(new Set());
+    setSelectedOrderId(null);
+    setSelectedOrder(null);
+    setScannedPartBatchIds(new Set());
     setStkInput('');
   };
 
   const headerSubtitle =
     step === 'select_wo'
-      ? 'Pilih Work Order'
+      ? 'Pilih Order'
       : step === 'confirm_wo'
       ? 'Konfirmasi Data'
       : step === 'scanning'
@@ -153,7 +218,7 @@ const StockOutScreen: React.FC<Props> = ({ navigation }) => {
         iconBgColor={`${colors.orange}25`}
         onBack={() =>
           step === 'select_wo'
-            ? navigation.navigate('Warehouse')
+            ? navigation.navigate('WarehouseHome')
             : handleReset()
         }
         rightSlot={
@@ -167,7 +232,7 @@ const StockOutScreen: React.FC<Props> = ({ navigation }) => {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
       >
-        {/* ── Step 1: Select WO ──────────────────────────── */}
+        {/* ── Step 1: Select Order ──────────────────────── */}
         {step === 'select_wo' && (
           <ScrollView
             showsVerticalScrollIndicator={false}
@@ -176,36 +241,48 @@ const StockOutScreen: React.FC<Props> = ({ navigation }) => {
           >
             <InfoBanner
               icon={<Factory color={colors.orange} size={20} />}
-              text="Pilih Work Order untuk memulai proses stock out"
+              text="Pilih Order untuk memulai proses stock out"
               bgColor={`${colors.orange}12`}
             />
 
-            <SearchableDropdown
-              options={DUMMY_WORK_ORDERS}
-              selectedValue={selectedWO}
-              onSelect={setSelectedWO}
-              onClear={() => setSelectedWO('')}
-            />
+            {loadingOrders ? (
+              <View style={styles.loadingField}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={styles.loadingText}>Memuat data Order...</Text>
+              </View>
+            ) : (
+              <SearchableDropdown
+                options={orderDropdownOptions}
+                selectedValue={selectedOrderId ? String(selectedOrderId) : ''}
+                onSelect={handleSelectOrder}
+                onClear={() => {
+                  setSelectedOrderId(null);
+                  setSelectedOrder(null);
+                }}
+                label="Order"
+                placeholder="Cari atau pilih Order..."
+              />
+            )}
 
             <View style={styles.buttonRow}>
               <Button
                 title="Batal"
                 variant="outline"
-                onPress={() => navigation.navigate('Warehouse')}
+                onPress={() => navigation.navigate('WarehouseHome')}
                 style={styles.halfBtn}
               />
               <Button
                 title="Cari"
-                onPress={handleFetchWO}
-                disabled={!selectedWO}
+                onPress={handleFetchOrder}
+                disabled={!selectedOrder}
                 style={styles.halfBtn}
               />
             </View>
           </ScrollView>
         )}
 
-        {/* ── Step 2: Confirm WO ─────────────────────────── */}
-        {step === 'confirm_wo' && woDetail && (
+        {/* ── Step 2: Confirm Order ─────────────────────── */}
+        {step === 'confirm_wo' && selectedOrder && (
           <ScrollView
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.scrollContent}
@@ -213,11 +290,37 @@ const StockOutScreen: React.FC<Props> = ({ navigation }) => {
           >
             <InfoBanner
               icon={<Factory color={colors.orange} size={20} />}
-              text="Pastikan data Work Order sudah benar sebelum memulai scan"
+              text="Pastikan data Order sudah benar sebelum memulai scan"
               bgColor={`${colors.orange}12`}
             />
 
-            <WorkOrderDetailCard woId={selectedWO} detail={woDetail} />
+            {/* Order Detail Card */}
+            <View style={styles.detailCard}>
+              <DetailRow
+                label="Order Number"
+                value={selectedOrder.orderNumber}
+              />
+              <DetailRow label="PO Number" value={selectedOrder.poNumber} />
+              <DetailRow
+                label="Customer"
+                value={selectedOrder.customer?.name ?? 'N/A'}
+              />
+              <DetailRow
+                label="Machine"
+                value={selectedOrder.machine?.name ?? 'N/A'}
+              />
+              <DetailRow
+                label="Line"
+                value={selectedOrder.line?.name ?? 'N/A'}
+              />
+              <DetailRow
+                label="PCB Model"
+                value={selectedOrder.pcbModel?.name ?? 'N/A'}
+              />
+              <DetailRow label="Face" value={selectedOrder.pcbModelFace} />
+              <DetailRow label="Lot Number" value={selectedOrder.lotNumber} />
+              <DetailRow label="Total STK" value={String(stkNumbers.length)} />
+            </View>
 
             <View style={styles.buttonRow}>
               <Button
@@ -238,7 +341,7 @@ const StockOutScreen: React.FC<Props> = ({ navigation }) => {
         )}
 
         {/* ── Step 3: Scanning ───────────────────────────── */}
-        {step === 'scanning' && woDetail && (
+        {step === 'scanning' && selectedOrder && (
           <View style={{ flex: 1 }}>
             <TextInput
               ref={barcodeRef}
@@ -254,22 +357,30 @@ const StockOutScreen: React.FC<Props> = ({ navigation }) => {
             />
 
             <StkScanProgress
-              scanned={scannedStks.size}
-              total={woDetail.stkNumbers.length}
+              scanned={scannedPartBatchIds.size}
+              total={stkNumbers.length}
             />
 
             <FlatList
-              data={woDetail.stkNumbers}
+              data={stkNumbers}
               keyExtractor={item => item}
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.stkListContent}
-              renderItem={({ item }) => (
-                <StkScanItem
-                  stkNumber={item}
-                  isScanned={scannedStks.has(item)}
-                  onPress={() => handleScanStk(item)}
-                />
-              )}
+              renderItem={({ item }) => {
+                const matchedItem = selectedOrder.orderItems.find(
+                  oi => oi.partBatch?.stkNumber === item,
+                );
+                const isScanned = matchedItem
+                  ? scannedPartBatchIds.has(matchedItem.partBatch.id)
+                  : false;
+                return (
+                  <StkScanItem
+                    stkNumber={item}
+                    isScanned={isScanned}
+                    onPress={() => handleScanStk(item)}
+                  />
+                );
+              }}
               ListHeaderComponent={
                 <View style={styles.scanHint}>
                   <ScanBarcode color={colors.primary} size={18} />
@@ -288,8 +399,10 @@ const StockOutScreen: React.FC<Props> = ({ navigation }) => {
                 style={styles.bottomBtn}
               />
               <Button
-                title={`Finish (${scannedStks.size}/${woDetail.stkNumbers.length})`}
-                onPress={handleFinish}
+                title={`Finish (${scannedPartBatchIds.size}/${stkNumbers.length})`}
+                onPress={handleSubmit}
+                isLoading={isSubmitting}
+                disabled={isSubmitting}
                 style={styles.bottomBtn}
               />
             </View>
@@ -297,7 +410,7 @@ const StockOutScreen: React.FC<Props> = ({ navigation }) => {
         )}
 
         {/* ── Step 4: Finished ───────────────────────────── */}
-        {step === 'finished' && (
+        {step === 'finished' && selectedOrder && (
           <ScrollView
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.finishedScrollContent}
@@ -309,14 +422,22 @@ const StockOutScreen: React.FC<Props> = ({ navigation }) => {
               </View>
               <Text style={styles.finishedTitle}>Stock Out Selesai!</Text>
               <Text style={styles.finishedSubtitle}>
-                Semua STK Number untuk {selectedWO} berhasil di-scan
+                Semua STK Number untuk {selectedOrder.orderNumber} berhasil
+                di-scan
               </Text>
 
               <View style={styles.finishedSummary}>
-                <SummaryRow label="Work Order" value={selectedWO} />
-                <SummaryRow
+                <DetailRow
+                  label="Order Number"
+                  value={selectedOrder.orderNumber}
+                />
+                <DetailRow
+                  label="Customer"
+                  value={selectedOrder.customer?.name ?? 'N/A'}
+                />
+                <DetailRow
                   label="Total STK"
-                  value={String(woDetail?.stkNumbers.length ?? 0)}
+                  value={String(stkNumbers.length)}
                 />
               </View>
 
@@ -333,10 +454,10 @@ const StockOutScreen: React.FC<Props> = ({ navigation }) => {
   );
 };
 
-const SummaryRow = ({ label, value }: { label: string; value: string }) => (
-  <View style={styles.summaryRow}>
-    <Text style={styles.summaryLabel}>{label}</Text>
-    <Text style={styles.summaryValue}>{value}</Text>
+const DetailRow = ({ label, value }: { label: string; value: string }) => (
+  <View style={styles.detailRow}>
+    <Text style={styles.detailLabel}>{label}</Text>
+    <Text style={styles.detailValue}>{value}</Text>
   </View>
 );
 
@@ -346,6 +467,36 @@ const styles = StyleSheet.create({
   scrollContent: { padding: 20, paddingBottom: 40 },
   buttonRow: { flexDirection: 'row', gap: 12, marginTop: 8 },
   halfBtn: { flex: 1, paddingVertical: 12 },
+  loadingField: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 12,
+  },
+  loadingText: {
+    fontSize: 13,
+    color: colors.textMuted,
+  },
+
+  // Detail Card
+  detailCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    ...shadows.sm,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 6,
+  },
+  detailLabel: { fontSize: 13, color: colors.textSecondary },
+  detailValue: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
 
   // Scan hint
   scanHint: {
@@ -408,13 +559,6 @@ const styles = StyleSheet.create({
     marginBottom: 32,
     ...shadows.sm,
   },
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 8,
-  },
-  summaryLabel: { fontSize: 13, color: colors.textSecondary },
-  summaryValue: { fontSize: 13, fontWeight: '600', color: colors.textPrimary },
   finishedBtn: { width: '100%', paddingVertical: 12 },
 });
 

@@ -6,7 +6,7 @@ export const showToast = (type: ToastType, message: string, title?: string) => {
     type,
     text1: title,
     text2: message,
-    position: 'bottom',
+    position: 'top',
   });
 };
 

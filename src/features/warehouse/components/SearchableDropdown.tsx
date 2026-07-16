@@ -17,6 +17,7 @@ type Props = {
   onClear: () => void;
   label?: string;
   placeholder?: string;
+  onBlur?: () => void;
 };
 
 const SearchableDropdown: React.FC<Props> = ({
@@ -26,6 +27,7 @@ const SearchableDropdown: React.FC<Props> = ({
   onClear,
   label = 'Work Order',
   placeholder = 'Cari atau pilih Work Order...',
+  onBlur,
 }) => {
   const [showDropdown, setShowDropdown] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -58,12 +60,23 @@ const SearchableDropdown: React.FC<Props> = ({
           style={styles.searchInput}
           placeholder={placeholder}
           placeholderTextColor={colors.textMuted}
-          value={showDropdown ? searchQuery : selectedValue || ''}
+          value={
+            showDropdown
+              ? searchQuery
+              : options.find(o => o.id === selectedValue)?.label || ''
+          }
           onChangeText={text => {
             setSearchQuery(text);
             setShowDropdown(true);
           }}
           onFocus={() => setShowDropdown(true)}
+          onBlur={() => {
+            // Delay to allow item selection to fire first
+            setTimeout(() => {
+              setShowDropdown(false);
+              onBlur?.();
+            }, 200);
+          }}
           returnKeyType="search"
         />
         <ChevronDown
@@ -79,7 +92,10 @@ const SearchableDropdown: React.FC<Props> = ({
       {selectedValue && !showDropdown && (
         <View style={styles.selectedBadge}>
           <CheckCircle2 color={colors.success} size={16} />
-          <Text style={styles.selectedText}>Dipilih: {selectedValue}</Text>
+          <Text style={styles.selectedText}>
+            Dipilih:{' '}
+            {options.find(o => o.id === selectedValue)?.label || selectedValue}
+          </Text>
           <TouchableOpacity
             onPress={() => {
               onClear();

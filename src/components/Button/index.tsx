@@ -11,6 +11,7 @@ import {
 interface ButtonProps {
   title: string;
   onPress: () => void;
+  variant?: 'primary' | 'secondary' | 'danger' | 'outline';
   isLoading?: boolean;
   disabled?: boolean;
   style?: ViewStyle;
@@ -20,6 +21,7 @@ interface ButtonProps {
 const Button: React.FC<ButtonProps> = ({
   title,
   onPress,
+  variant = 'primary',
   isLoading = false,
   disabled = false,
   style,
@@ -34,13 +36,26 @@ const Button: React.FC<ButtonProps> = ({
       onPress={onPress}
       style={[
         styles.button,
+        variant === 'primary' && styles.primary,
+        variant === 'secondary' && styles.secondary,
+        variant === 'danger' && styles.danger,
+        variant === 'outline' && styles.outline,
         isDisabled && styles.disabled,
         style,
-      ]}>
+      ]}
+    >
       {isLoading ? (
-        <ActivityIndicator color="#FFFFFF" />
+        <ActivityIndicator
+          color={variant === 'outline' ? '#2563EB' : '#FFFFFF'}
+        />
       ) : (
-        <Text style={[styles.text, textStyle]}>
+        <Text
+          style={[
+            styles.text,
+            variant === 'outline' && styles.outlineText,
+            textStyle,
+          ]}
+        >
           {title}
         </Text>
       )}
@@ -50,28 +65,37 @@ const Button: React.FC<ButtonProps> = ({
 
 const styles = StyleSheet.create({
   button: {
-    width: '100%',
-    backgroundColor: '#2563EB', // blue-600
-
-    minHeight: 52,
-
-    borderRadius: 12, // rounded-xl
-
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
-
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    marginHorizontal: 'auto',
   },
-
+  primary: {
+    backgroundColor: '#2563EB',
+  },
+  secondary: {
+    backgroundColor: '#6366F1',
+  },
+  danger: {
+    backgroundColor: '#EF4444',
+  },
+  outline: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: '#2563EB',
+  },
   disabled: {
     opacity: 0.6,
   },
-
   text: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '500', // font-medium
+  },
+  outlineText: {
+    color: '#2563EB',
   },
 });
 

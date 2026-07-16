@@ -5,10 +5,13 @@ import { colors, shadows } from '../../../theme';
 
 type Props = {
   scannedValue: string;
-  isSubmitted: boolean;
+  isSubmitted?: boolean;
 };
 
-const ScanResultCard: React.FC<Props> = ({ scannedValue, isSubmitted }) => {
+const ScanResultCard: React.FC<Props> = ({
+  scannedValue,
+  isSubmitted = false,
+}) => {
   return (
     <View style={[styles.card, isSubmitted && styles.cardSuccess]}>
       <View style={styles.header}>

@@ -18,4 +18,12 @@ export const API_ENDPOINTS = {
   // Dashboard
   DASHBOARD: '/dashboard',
   DASHBOARD_STATS: '/dashboard/stats',
+
+  // Warehouse
+  SUPPLIERS: '/suppliers',
+  MAKERS: '/makers',
+  PART_ACCEPTANCES: '/PartAcceptances',
+  WH_STOCK_INS: '/wh-stock-ins',
+  ORDERS: '/Orders',
+  MATERIAL_FEEDINGS: '/MaterialFeedings',
 } as const;

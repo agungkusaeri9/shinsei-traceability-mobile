@@ -23,15 +23,9 @@ function RootNavigator() {
   return (
     <RootStack.Navigator screenOptions={{ headerShown: false }}>
       {isAuthenticated ? (
-        <RootStack.Screen
-          name="App"
-          component={AppInnerNavigator}
-        />
+        <RootStack.Screen name="App" component={AppInnerNavigator} />
       ) : (
-        <RootStack.Screen
-          name="Auth"
-          component={AuthNavigator}
-        />
+        <RootStack.Screen name="Auth" component={AuthNavigator} />
       )}
     </RootStack.Navigator>
   );
@@ -61,10 +55,7 @@ const toastConfig = {
 function App(): React.JSX.Element {
   return (
     <SafeAreaProvider>
-      <StatusBar
-        barStyle="light-content"
-        backgroundColor="#0D1B2A"
-      />
+      <StatusBar barStyle="light-content" backgroundColor="#0D1B2A" />
 
       <NavigationContainer>
         <RootNavigator />
@@ -73,8 +64,8 @@ function App(): React.JSX.Element {
       <Toast
         config={toastConfig}
         position="top"
-        topOffset={2}
-        visibilityTime={1500}
+        topOffset={60}
+        visibilityTime={2000}
       />
     </SafeAreaProvider>
   );
@@ -82,7 +73,8 @@ function App(): React.JSX.Element {
 
 const styles = StyleSheet.create({
   toastSuccess: {
-    width: 200,
+    width: '90%',
+    maxWidth: 400,
     borderLeftWidth: 0,
     borderRadius: 12,
     backgroundColor: '#22C55E',
@@ -97,7 +89,8 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   toastError: {
-    width: 200,
+    width: '90%',
+    maxWidth: 400,
     borderLeftWidth: 0,
     borderRadius: 12,
     backgroundColor: '#EF4444',
@@ -112,21 +105,21 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
 
-
   toastContent: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
 
   toastTitle: {
     color: '#FFFFFF',
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '700',
   },
 
   toastText: {
     color: '#FFFFFF',
-    fontSize: 10,
+    fontSize: 12,
+    lineHeight: 18,
   },
 });
 

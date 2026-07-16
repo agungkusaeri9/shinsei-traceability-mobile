@@ -1,12 +1,13 @@
 import React from 'react';
 import { View, Text, StyleSheet, ViewStyle } from 'react-native';
+import { colors, shadows } from '../../../theme';
 
 interface DashboardCardProps {
   title: string;
   value: string | number;
   subtitle?: string;
   color?: string;
-  icon?: string;
+  icon?: React.ReactNode;
   style?: ViewStyle;
 }
 
@@ -14,14 +15,14 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
   title,
   value,
   subtitle,
-  color = '#1A73E8',
+  color = colors.primary,
   icon,
   style,
 }) => {
   return (
     <View style={[styles.card, style]}>
       <View style={[styles.iconBadge, { backgroundColor: `${color}20` }]}>
-        <Text style={styles.icon}>{icon ?? '📊'}</Text>
+        {icon}
       </View>
       <Text style={[styles.value, { color }]}>{value}</Text>
       <Text style={styles.title}>{title}</Text>
@@ -33,15 +34,11 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
 const styles = StyleSheet.create({
   card: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 16,
     alignItems: 'flex-start',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    ...shadows.md,
   },
   iconBadge: {
     width: 40,
@@ -51,22 +48,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 12,
   },
-  icon: { fontSize: 20 },
-  value: {
-    fontSize: 28,
-    fontWeight: '800',
-    marginBottom: 4,
-  },
-  title: {
-    fontSize: 13,
-    color: '#6B7280',
-    fontWeight: '500',
-  },
-  subtitle: {
-    fontSize: 11,
-    color: '#9CA3AF',
-    marginTop: 2,
-  },
+  value: { fontSize: 28, fontWeight: '800', marginBottom: 4 },
+  title: { fontSize: 13, color: colors.textSecondary, fontWeight: '500' },
+  subtitle: { fontSize: 11, color: colors.textMuted, marginTop: 2 },
 });
 
 export default DashboardCard;

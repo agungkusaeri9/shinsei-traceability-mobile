@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const BASE_URL_KEY = 'base_url';
-const DEFAULT_BASE_URL = 'http://192.168.245.191:5000/api';
+const DEFAULT_BASE_URL = 'http://192.168.245.101:5051/api';
 
 export const getBaseUrl = async (): Promise<string> => {
   try {

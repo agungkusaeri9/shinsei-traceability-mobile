@@ -7,14 +7,18 @@ export interface LoginPayload {
 
 export interface LoginResponse {
   user: {
-    id: string;
+    id?: string;
     name: string;
-    email: string;
+    code: string;
+    username: string;
     role: string;
     avatar?: string;
   };
-  token: string;
-  refreshToken: string;
+  accessToken: {
+    token: string;
+    expiresAt: string;
+    type: string;
+  };
 }
 
 export interface ForgotPasswordPayload {

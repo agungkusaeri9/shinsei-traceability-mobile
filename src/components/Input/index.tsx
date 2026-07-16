@@ -1,5 +1,5 @@
 import { Eye, EyeOff } from 'lucide-react-native/icons';
-import React, { useState } from 'react';
+import React, { useState, forwardRef } from 'react';
 import {
   View,
   TextInput,
@@ -8,6 +8,8 @@ import {
   StyleSheet,
   TextInputProps,
   ViewStyle,
+  NativeSyntheticEvent,
+  TextInputKeyPressEventData,
 } from 'react-native';
 
 interface InputProps extends TextInputProps {
@@ -17,67 +19,110 @@ interface InputProps extends TextInputProps {
   containerStyle?: ViewStyle;
   leftIcon?: React.ReactNode;
   dark?: boolean;
+  onSubmitEditing?: () => void;
+  onEnterDetected?: () => void;
 }
 
-const Input: React.FC<InputProps> = ({
-  label,
-  error,
-  isPassword = false,
-  containerStyle,
-  leftIcon,
-  dark = false,
-  ...props
-}) => {
-  const [isSecure, setIsSecure] = useState(isPassword);
-  const [isFocused, setIsFocused] = useState(false);
+const Input = forwardRef<TextInput, InputProps>(
+  (
+    {
+      label,
+      error,
+      isPassword = false,
+      containerStyle,
+      leftIcon,
+      dark = false,
+      onSubmitEditing,
+      onEnterDetected,
+      onKeyPress,
+      onFocus,
+      onBlur,
+      ...props
+    },
+    ref,
+  ) => {
+    const [isSecure, setIsSecure] = useState(isPassword);
+    const [isFocused, setIsFocused] = useState(false);
 
-  return (
-    <View style={[styles.container, containerStyle]}>
-      {label && <Text style={[styles.label, dark && styles.labelDark]}>{label}</Text>}
+    const handleKeyPress = (
+      e: NativeSyntheticEvent<TextInputKeyPressEventData>,
+    ) => {
+      onKeyPress?.(e);
+      if (e.nativeEvent.key === 'Enter') {
+        onEnterDetected?.();
+        onSubmitEditing?.();
+      }
+    };
 
-      <View
-        style={[
-          styles.inputWrapper,
-          dark && styles.inputWrapperDark,
-          isFocused && styles.inputFocused,
-          isFocused && dark && styles.inputFocusedDark,
-          error ? styles.inputError : null,
-          error && dark && styles.inputErrorDark,
-        ]}>
-        {leftIcon && <View style={styles.leftIcon}>{leftIcon}</View>}
+    return (
+      <View style={[styles.container, containerStyle]}>
+        {label && (
+          <Text style={[styles.label, dark && styles.labelDark]}>{label}</Text>
+        )}
 
-        <TextInput
-          style={[styles.input, leftIcon && styles.inputWithIcon, dark && styles.inputDark]}
-          secureTextEntry={isSecure}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
-          placeholderTextColor={dark ? '#9CA3AF' : '#9CA3AF'}
-          autoCapitalize="none"
-          {...props}
-        />
+        <View
+          style={[
+            styles.inputWrapper,
+            dark && styles.inputWrapperDark,
+            isFocused && styles.inputFocused,
+            isFocused && dark && styles.inputFocusedDark,
+            error ? styles.inputError : null,
+            error && dark && styles.inputErrorDark,
+          ]}
+        >
+          {leftIcon && <View style={styles.leftIcon}>{leftIcon}</View>}
 
-        {isPassword && (
-          <TouchableOpacity
-            style={styles.eyeButton}
-            onPress={() => setIsSecure(prev => !prev)}>
-            <Text style={[styles.eyeText, dark && styles.eyeTextDark]}>
-              {
-                isSecure ? (
+          <TextInput
+            ref={ref}
+            style={[
+              styles.input,
+              leftIcon ? styles.inputWithIcon : undefined,
+              dark ? styles.inputDark : undefined,
+            ]}
+            secureTextEntry={isSecure}
+            onFocus={e => {
+              setIsFocused(true);
+              onFocus?.(e);
+            }}
+            onBlur={e => {
+              setIsFocused(false);
+              onBlur?.(e);
+            }}
+            placeholderTextColor={dark ? '#9CA3AF' : '#9CA3AF'}
+            autoCapitalize="none"
+            blurOnSubmit={false}
+            {...props}
+            onSubmitEditing={onSubmitEditing}
+            onKeyPress={handleKeyPress}
+          />
+
+          {isPassword && (
+            <TouchableOpacity
+              style={styles.eyeButton}
+              onPress={() => setIsSecure(prev => !prev)}
+            >
+              <Text style={[styles.eyeText, dark && styles.eyeTextDark]}>
+                {isSecure ? (
                   <Eye size={16} color={dark ? '#A5B4FC' : '#6B7280'} />
                 ) : (
                   <EyeOff size={16} color={dark ? '#A5B4FC' : '#6B7280'} />
-                )
-              }
+                )}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
 
-            </Text>
-          </TouchableOpacity>
+        {error && (
+          <Text style={[styles.errorText, dark && styles.errorTextDark]}>
+            {error}
+          </Text>
         )}
       </View>
+    );
+  },
+);
 
-      {error && <Text style={[styles.errorText, dark && styles.errorTextDark]}>{error}</Text>}
-    </View>
-  );
-};
+Input.displayName = 'Input';
 
 const styles = StyleSheet.create({
   container: {

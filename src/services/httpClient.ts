@@ -1,5 +1,13 @@
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
+import axios, {
+  AxiosInstance,
+  AxiosRequestConfig,
+  AxiosResponse,
+  InternalAxiosRequestConfig,
+} from 'axios';
 import { getBaseUrl } from '../utils/baseUrl';
+
+// Module-level token storage for reliable access in interceptor
+let authToken: string | null = null;
 
 // Create axios instance with default base URL
 const httpClient: AxiosInstance = axios.create({
@@ -19,8 +27,10 @@ export const initializeHttpClient = async (): Promise<void> => {
 // ─── Request Interceptor ──────────────────────────────────────────────────────
 httpClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    // Token akan diset dari authStore / useAuth hook
-    // config.headers.Authorization = `Bearer ${token}`;
+    // Attach token from module-level variable
+    if (authToken) {
+      config.headers.set('Authorization', `Bearer ${authToken}`);
+    }
     return config;
   },
   error => Promise.reject(error),
@@ -42,6 +52,7 @@ httpClient.interceptors.response.use(
  * Set Authorization token for all subsequent requests
  */
 export const setAuthToken = (token: string | null): void => {
+  authToken = token;
   if (token) {
     httpClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
   } else {

@@ -16,15 +16,18 @@ import {
   TrendingUp,
   TrendingDown,
 } from 'lucide-react-native';
-import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
-import { AppTabParamList } from '../../../types';
+import { WarehouseStackParamList } from '../../../types';
 import { colors, shadows } from '../../../theme';
 import { useAuth } from '../../../hooks/useAuth';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type Props = {
-  navigation: BottomTabNavigationProp<AppTabParamList, 'Warehouse'>;
+  navigation: NativeStackNavigationProp<
+    WarehouseStackParamList,
+    'WarehouseHome'
+  >;
 };
 
 const recentMovements = [

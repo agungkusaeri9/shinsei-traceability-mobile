@@ -8,7 +8,7 @@ export const useLogin = () => {
   const { setAuth, isLoading, setLoading } = useAuth();
 
   const [form, setForm] = useState<LoginFormValues>({
-    username: 'SUDIRJA_SA',
+    username: 'testwh',
     password: 'password',
   });
 
@@ -42,7 +42,12 @@ export const useLogin = () => {
     try {
       setLoading(true);
       const data = await loginService(form);
-      setAuth(data.user, data.token);
+      const token = data.accessToken.token;
+      const user = {
+        ...data.user,
+        id: data.user.id ?? data.user.code,
+      };
+      setAuth(user, token);
       return true;
     } catch (error: any) {
       const msg = error?.response?.data?.message || 'Login gagal. Coba lagi.';
