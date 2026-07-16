@@ -3,6 +3,7 @@
 export interface User {
   id: string;
   name: string;
+  code?: string;
   username: string;
   role: string;
   avatar?: string;
@@ -45,15 +46,27 @@ export type AuthStackParamList = {
 
 import { RegisteredPart } from '../features/warehouse/types';
 
-export type AppTabParamList = {
-  Dashboard: undefined;
-  PartAcceptance: undefined;
-  MaterialFeeding: undefined;
-  Area: undefined;
-  Warehouse: undefined;
+export type WarehouseStackParamList = {
+  WarehouseHome: undefined;
   Register: undefined;
   StockIn: { registeredData?: RegisteredPart } | undefined;
   StockOut: undefined;
+};
+
+export type AreaStackParamList = {
+  AreaHome: undefined;
+  WarehouseDashboard: undefined;
+  Register: undefined;
+  StockIn: { registeredData?: RegisteredPart } | undefined;
+  StockOut: undefined;
+};
+
+import { NavigatorScreenParams } from '@react-navigation/native';
+
+export type AppTabParamList = {
+  Dashboard: undefined;
+  Area: NavigatorScreenParams<AreaStackParamList> | undefined;
+  Warehouse: NavigatorScreenParams<WarehouseStackParamList> | undefined;
   Profile: undefined;
 };
 

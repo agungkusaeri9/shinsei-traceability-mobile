@@ -1,38 +1,66 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import DashboardScreen from '../features/dashboard/screens/DashboardScreen';
 import ProfileScreen from '../features/profile/screens/ProfileScreen';
 
-import { AppTabParamList } from '../types';
+import {
+  AppTabParamList,
+  WarehouseStackParamList,
+  AreaStackParamList,
+} from '../types';
 import { useAuth } from '../hooks/useAuth';
-import PartAcceptanceListScreen from '../features/partAcceptance/screens/PartAcceptanceListScreen';
-import MaterialFeedingListScreen from '../features/materialFeeding/screens/MaterialFeedingListScreen';
 import AreaScreen from '../features/area/screens/AreaScreen';
+import AreaWarehouseDashboard from '../features/area/screens/AreaWarehouseDashboard';
 import WarehouseScreen from '../features/warehouse/screens/WarehouseScreen';
 import RegisterScreen from '../features/warehouse/screens/RegisterScreen';
 import StockInScreen from '../features/warehouse/screens/StockInScreen';
 import StockOutScreen from '../features/warehouse/screens/StockOutScreen';
 import {
   DashboardIcon,
-  MaterialFeedingIcon,
-  PartAcceptanceIcon,
   ProfileIcon,
   AreaIcon,
   WarehouseTabIcon,
-  RegisterIcon,
-  StockInIcon,
-  StockOutIcon,
 } from '../utils/tabIcons';
 
 const Tab = createBottomTabNavigator<AppTabParamList>();
+const WarehouseStack = createNativeStackNavigator<WarehouseStackParamList>();
+const AreaStack = createNativeStackNavigator<AreaStackParamList>();
 
 const HIDDEN_TAB = { tabBarItemStyle: { display: 'none' as const } };
+
+function WarehouseNavigator() {
+  return (
+    <WarehouseStack.Navigator screenOptions={{ headerShown: false }}>
+      <WarehouseStack.Screen name="WarehouseHome" component={WarehouseScreen} />
+      <WarehouseStack.Screen name="Register" component={RegisterScreen} />
+      <WarehouseStack.Screen name="StockIn" component={StockInScreen} />
+      <WarehouseStack.Screen name="StockOut" component={StockOutScreen} />
+    </WarehouseStack.Navigator>
+  );
+}
+
+function AreaNavigator() {
+  return (
+    <AreaStack.Navigator screenOptions={{ headerShown: false }}>
+      <AreaStack.Screen name="AreaHome" component={AreaScreen} />
+      <AreaStack.Screen
+        name="WarehouseDashboard"
+        component={AreaWarehouseDashboard}
+      />
+      <AreaStack.Screen name="Register" component={RegisterScreen} />
+      <AreaStack.Screen name="StockIn" component={StockInScreen} />
+      <AreaStack.Screen name="StockOut" component={StockOutScreen} />
+    </AreaStack.Navigator>
+  );
+}
 
 const AppNavigator: React.FC = () => {
   const { user } = useAuth();
   const role = user?.role ?? '';
   const isWarehouse = role === 'warehouse';
+  const isSuperadmin = role === 'superadmin';
 
   return (
     <Tab.Navigator
@@ -49,75 +77,25 @@ const AppNavigator: React.FC = () => {
         }}
       />
 
-      {/* Warehouse-only screens */}
+      {/* Area - stack navigator, shown for superadmin */}
+      <Tab.Screen
+        name="Area"
+        component={AreaNavigator}
+        options={{
+          title: 'Area',
+          tabBarIcon: AreaIcon,
+          ...(isSuperadmin ? {} : HIDDEN_TAB),
+        }}
+      />
+
+      {/* Warehouse - uses stack navigator, shown for warehouse role */}
       <Tab.Screen
         name="Warehouse"
-        component={WarehouseScreen}
+        component={WarehouseNavigator}
         options={{
           title: 'Warehouse',
           tabBarIcon: WarehouseTabIcon,
           ...(isWarehouse ? {} : HIDDEN_TAB),
-        }}
-      />
-
-      <Tab.Screen
-        name="Register"
-        component={RegisterScreen}
-        options={{
-          title: 'Register',
-          tabBarIcon: RegisterIcon,
-          ...HIDDEN_TAB,
-        }}
-      />
-
-      <Tab.Screen
-        name="StockIn"
-        component={StockInScreen}
-        options={{
-          title: 'Stock In',
-          tabBarIcon: StockInIcon,
-          ...HIDDEN_TAB,
-        }}
-      />
-
-      <Tab.Screen
-        name="StockOut"
-        component={StockOutScreen}
-        options={{
-          title: 'Stock Out',
-          tabBarIcon: StockOutIcon,
-          ...HIDDEN_TAB,
-        }}
-      />
-
-      {/* Non-warehouse screens (hidden for warehouse role) */}
-      <Tab.Screen
-        name="PartAcceptance"
-        component={PartAcceptanceListScreen}
-        options={{
-          title: 'Acceptance',
-          tabBarIcon: PartAcceptanceIcon,
-          ...(isWarehouse ? HIDDEN_TAB : {}),
-        }}
-      />
-
-      <Tab.Screen
-        name="MaterialFeeding"
-        component={MaterialFeedingListScreen}
-        options={{
-          title: 'Material Feeding',
-          tabBarIcon: MaterialFeedingIcon,
-          ...(isWarehouse ? HIDDEN_TAB : {}),
-        }}
-      />
-
-      <Tab.Screen
-        name="Area"
-        component={AreaScreen}
-        options={{
-          title: 'Area',
-          tabBarIcon: AreaIcon,
-          ...(isWarehouse ? HIDDEN_TAB : {}),
         }}
       />
 

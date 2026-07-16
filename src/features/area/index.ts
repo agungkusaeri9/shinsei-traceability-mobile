@@ -1,0 +1,1 @@
+export { default as AreaScreen } from './screens/AreaScreen';
