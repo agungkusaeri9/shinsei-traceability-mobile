@@ -124,7 +124,8 @@ const WarehouseScreen: React.FC<Props> = ({ navigation }) => {
         {/* ── Main Actions ─────────────────────────────── */}
         <Text style={styles.sectionTitle}>Menu Gudang</Text>
         <View style={styles.actionsRow}>
-          <TouchableOpacity
+          {/* Register - disabled, moved to SMT Part Register */}
+          {/* <TouchableOpacity
             activeOpacity={0.7}
             style={[styles.actionCard, { borderColor: `${colors.primary}30` }]}
             onPress={() => navigation.navigate('Register')}
@@ -139,7 +140,7 @@ const WarehouseScreen: React.FC<Props> = ({ navigation }) => {
             </View>
             <Text style={styles.actionTitle}>Register</Text>
             <Text style={styles.actionDesc}>Daftarkan part</Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
 
           <TouchableOpacity
             activeOpacity={0.7}

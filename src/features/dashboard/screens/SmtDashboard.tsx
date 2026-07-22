@@ -1,12 +1,11 @@
 import React from 'react';
 import { View, Text, StyleSheet, FlatList } from 'react-native';
 import {
-  Package,
-  ArrowDownToLine,
-  ArrowUpFromLine,
-  AlertTriangle,
-  TrendingUp,
   ClipboardList,
+  ArrowLeftRight,
+  CheckCircle2,
+  Cpu,
+  Layers,
 } from 'lucide-react-native';
 
 import { colors } from '../../../theme';
@@ -23,124 +22,111 @@ type Props = {
 const mockActivities: Activity[] = [
   {
     id: '1',
-    title: 'Stock In #IN-2024-001',
-    description: 'Bearing Assembly A-100 masuk (120 unit)',
+    title: 'Part Register Selesai',
+    description: 'LOT20260709001 - 5 part batch ter-register',
     time: '10 menit lalu',
-    type: 'shipment',
+    type: 'done',
   },
   {
     id: '2',
-    title: 'Stok Menipis',
-    description: 'Sensor Proximity M-22 di bawah threshold',
-    time: '1 jam lalu',
-    type: 'alert',
-  },
-  {
-    id: '3',
-    title: 'Stock Out #OUT-2024-014',
-    description: 'Sensor Proximity M-22 keluar (35 unit)',
-    time: '45 menit lalu',
+    title: 'Part Changing',
+    description: 'PCB-001 Face B - Part batch #164268 diubah',
+    time: '30 menit lalu',
     type: 'order',
   },
   {
-    id: '4',
-    title: 'Stock In Selesai',
-    description: 'Cable Harness V2 diterima (200 unit)',
+    id: '3',
+    title: 'Produksi Selesai',
+    description: 'Order #485 - Denso MFG Indonesia selesai',
     time: '2 jam lalu',
-    type: 'done',
+    type: 'shipment',
   },
 ];
 
-/**
- * Navigate to a warehouse screen.
- * Works with both BottomTab (Warehouse tab) and AreaStack navigation.
- */
-const navigateToWarehouseScreen = (navigation: any, screen: string) => {
-  // Try AreaStack navigation first (direct navigate)
-  // If coming from AreaStack, the screens are direct children
+const navigateToSmtScreen = (navigation: any, screen: string) => {
+  // Navigate to SMT tab screens via parent navigator
   if (typeof navigation.navigate === 'function') {
-    navigation.navigate(screen);
+    navigation.navigate('SMT', { screen });
   }
 };
 
-const WarehouseDashboard: React.FC<Props> = ({
+const SmtDashboard: React.FC<Props> = ({
   navigation,
   showCustomHeader = false,
 }) => {
   const renderHeader = () => (
     <View>
-      {/* ── Warehouse Stats ────────────────────────────── */}
-      <Text style={styles.sectionTitle}>Ringkasan Gudang</Text>
+      {/* ── SMT Stats ──────────────────────────────────── */}
+      <Text style={styles.sectionTitle}>Ringkasan SMT</Text>
       <View style={styles.statsRow}>
         <DashboardCard
-          title="Total Stok"
-          value="1.2K"
+          title="Total Register"
+          value="48"
           color={colors.primary}
-          icon={<Package color={colors.primary} size={20} />}
+          icon={<ClipboardList color={colors.primary} size={20} />}
           style={styles.cardHalf}
         />
         <DashboardCard
-          title="Stok Menipis"
-          value="8"
-          color={colors.warning}
-          icon={<AlertTriangle color={colors.warning} size={20} />}
+          title="Part Changes"
+          value="5"
+          color={colors.orange}
+          icon={<ArrowLeftRight color={colors.orange} size={20} />}
           style={styles.cardHalf}
         />
       </View>
       <View style={styles.statsRow}>
         <DashboardCard
-          title="Masuk Hari Ini"
-          value="340"
+          title="Selesai Hari Ini"
+          value="12"
           color={colors.success}
-          icon={<ArrowDownToLine color={colors.success} size={20} />}
+          icon={<CheckCircle2 color={colors.success} size={20} />}
           style={styles.cardHalf}
         />
         <DashboardCard
-          title="Keluar Hari Ini"
-          value="53"
-          color={colors.orange}
-          icon={<ArrowUpFromLine color={colors.orange} size={20} />}
+          title="Dalam Proses"
+          value="3"
+          color={colors.warning}
+          icon={<Cpu color={colors.warning} size={20} />}
           style={styles.cardHalf}
         />
       </View>
 
-      {/* ── Quick Actions ────────────────────────────── */}
+      {/* ── Quick Actions ─────────────────────────────── */}
       <Text style={[styles.sectionTitle, styles.sectionGap]}>
         Quick Actions
       </Text>
       <View style={styles.statsRow}>
-        {/* Register Part - disabled, moved to SMT Part Register */}
-        {/* <QuickActionCard
-          title="Register Part"
+        <QuickActionCard
+          title="Part Register"
           color={colors.primary}
           icon={<ClipboardList color={colors.primary} size={22} />}
-          onPress={() => navigateToWarehouseScreen(navigation, 'Register')}
-        /> */}
+          onPress={() => navigateToSmtScreen(navigation, 'PartRegister')}
+        />
         <QuickActionCard
-          title="Stock In"
-          color={colors.success}
-          icon={<ArrowDownToLine color={colors.success} size={22} />}
-          onPress={() => navigateToWarehouseScreen(navigation, 'StockIn')}
+          title="Part Changing"
+          color={colors.orange}
+          icon={<ArrowLeftRight color={colors.orange} size={22} />}
+          onPress={() => navigateToSmtScreen(navigation, 'PartChanging')}
         />
       </View>
       <View style={styles.statsRow}>
         <QuickActionCard
-          title="Stock Out"
-          color={colors.orange}
-          icon={<ArrowUpFromLine color={colors.orange} size={22} />}
-          onPress={() => navigateToWarehouseScreen(navigation, 'StockOut')}
+          title="Finish"
+          color={colors.success}
+          icon={<CheckCircle2 color={colors.success} size={22} />}
+          onPress={() => navigateToSmtScreen(navigation, 'Finish')}
         />
         {!showCustomHeader && (
           <QuickActionCard
             title="Profile"
             color={colors.purple}
-            icon={<TrendingUp color={colors.purple} size={22} />}
+            icon={<Layers color={colors.purple} size={22} />}
             onPress={() => navigation.navigate('Profile')}
           />
         )}
       </View>
 
-      {/* ── Recent Activity ──────────────────────────── */}
+      {/* ── Recent Activity ───────────────────────────── */}
       <Text style={[styles.sectionTitle, styles.sectionGap]}>
         Aktivitas Terkini
       </Text>
@@ -151,7 +137,7 @@ const WarehouseDashboard: React.FC<Props> = ({
     <View style={styles.container}>
       {!showCustomHeader && (
         <DashboardHeader
-          variant="warehouse"
+          variant="smt"
           onProfilePress={() => navigation.navigate('Profile')}
         />
       )}
@@ -185,4 +171,4 @@ const styles = StyleSheet.create({
   separator: { height: 12 },
 });
 
-export default WarehouseDashboard;
+export default SmtDashboard;

@@ -30,10 +30,15 @@ const headerConfig: Record<
     accent: colors.indigo,
     label: 'Super Admin',
   },
-  warehouse: {
+  wh: {
     bg: colors.headerWarehouse,
     accent: colors.orange,
     label: 'Warehouse',
+  },
+  smt: {
+    bg: colors.primary,
+    accent: colors.textInverse,
+    label: 'SMT',
   },
 };
 

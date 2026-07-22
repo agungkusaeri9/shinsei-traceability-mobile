@@ -1,6 +1,11 @@
 import React from 'react';
 import { View, Text, StyleSheet, FlatList } from 'react-native';
-import { ShoppingCart, Clock, CheckCircle2, Package } from 'lucide-react-native';
+import {
+  ShoppingCart,
+  Clock,
+  CheckCircle2,
+  Package,
+} from 'lucide-react-native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 
 import { AppTabParamList } from '../../../types';

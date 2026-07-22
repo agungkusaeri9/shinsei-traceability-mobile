@@ -19,6 +19,13 @@ export const API_ENDPOINTS = {
   DASHBOARD: '/dashboard',
   DASHBOARD_STATS: '/dashboard/stats',
 
+  // SMT
+  ORDER_LOT: '/orders/lot',
+  SMTS: '/smts',
+
+  // STK
+  STKS: '/stks',
+
   // Warehouse
   SUPPLIERS: '/suppliers',
   MAKERS: '/makers',

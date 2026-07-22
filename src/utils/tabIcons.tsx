@@ -7,6 +7,7 @@ import {
   Warehouse as WarehouseIcon,
   ArrowDownToLine,
   ArrowUpFromLine,
+  CircuitBoard,
 } from 'lucide-react-native';
 
 interface TabIconProps {
@@ -40,4 +41,8 @@ export const StockInIcon = ({ color, size }: TabIconProps) => (
 
 export const StockOutIcon = ({ color, size }: TabIconProps) => (
   <ArrowUpFromLine color={color} size={size} />
+);
+
+export const SmtTabIcon = ({ color, size }: TabIconProps) => (
+  <CircuitBoard color={color} size={size} />
 );

@@ -9,6 +9,7 @@ import {
   AppTabParamList,
   WarehouseStackParamList,
   AreaStackParamList,
+  SmtStackParamList,
 } from '../types';
 import { useAuth } from '../hooks/useAuth';
 import AreaScreen from '../features/area/screens/AreaScreen';
@@ -17,16 +18,22 @@ import WarehouseScreen from '../features/warehouse/screens/WarehouseScreen';
 import RegisterScreen from '../features/warehouse/screens/RegisterScreen';
 import StockInScreen from '../features/warehouse/screens/StockInScreen';
 import StockOutScreen from '../features/warehouse/screens/StockOutScreen';
+import SmtHomeScreen from '../features/smt/screens/SmtHomeScreen';
+import PartRegisterScreen from '../features/smt/screens/PartRegisterScreen';
+import PartChangingScreen from '../features/smt/screens/PartChangingScreen';
+import FinishScreen from '../features/smt/screens/FinishScreen';
 import {
   DashboardIcon,
   ProfileIcon,
   AreaIcon,
   WarehouseTabIcon,
+  SmtTabIcon,
 } from '../utils/tabIcons';
 
 const Tab = createBottomTabNavigator<AppTabParamList>();
 const WarehouseStack = createNativeStackNavigator<WarehouseStackParamList>();
 const AreaStack = createNativeStackNavigator<AreaStackParamList>();
+const SmtStack = createNativeStackNavigator<SmtStackParamList>();
 
 const HIDDEN_TAB = { tabBarItemStyle: { display: 'none' as const } };
 
@@ -34,7 +41,8 @@ function WarehouseNavigator() {
   return (
     <WarehouseStack.Navigator screenOptions={{ headerShown: false }}>
       <WarehouseStack.Screen name="WarehouseHome" component={WarehouseScreen} />
-      <WarehouseStack.Screen name="Register" component={RegisterScreen} />
+      {/* Register - disabled, moved to SMT Part Register */}
+      {/* <WarehouseStack.Screen name="Register" component={RegisterScreen} /> */}
       <WarehouseStack.Screen name="StockIn" component={StockInScreen} />
       <WarehouseStack.Screen name="StockOut" component={StockOutScreen} />
     </WarehouseStack.Navigator>
@@ -49,18 +57,31 @@ function AreaNavigator() {
         name="WarehouseDashboard"
         component={AreaWarehouseDashboard}
       />
-      <AreaStack.Screen name="Register" component={RegisterScreen} />
+      {/* Register - disabled, moved to SMT Part Register */}
+      {/* <AreaStack.Screen name="Register" component={RegisterScreen} /> */}
       <AreaStack.Screen name="StockIn" component={StockInScreen} />
       <AreaStack.Screen name="StockOut" component={StockOutScreen} />
     </AreaStack.Navigator>
   );
 }
 
+function SmtNavigator() {
+  return (
+    <SmtStack.Navigator screenOptions={{ headerShown: false }}>
+      <SmtStack.Screen name="SmtHome" component={SmtHomeScreen} />
+      <SmtStack.Screen name="PartRegister" component={PartRegisterScreen} />
+      <SmtStack.Screen name="PartChanging" component={PartChangingScreen} />
+      <SmtStack.Screen name="Finish" component={FinishScreen} />
+    </SmtStack.Navigator>
+  );
+}
+
 const AppNavigator: React.FC = () => {
   const { user } = useAuth();
   const role = user?.role ?? '';
-  const isWarehouse = role === 'warehouse';
-  const isSuperadmin = role === 'superadmin';
+  const isWarehouse = role.toLowerCase() === 'wh';
+  const isSuperadmin = role.toLowerCase() === 'superadmin';
+  const isSmt = role.toLowerCase() === 'smt';
 
   return (
     <Tab.Navigator
@@ -96,6 +117,17 @@ const AppNavigator: React.FC = () => {
           title: 'Warehouse',
           tabBarIcon: WarehouseTabIcon,
           ...(isWarehouse ? {} : HIDDEN_TAB),
+        }}
+      />
+
+      {/* SMT - uses stack navigator, shown for smt role */}
+      <Tab.Screen
+        name="SMT"
+        component={SmtNavigator}
+        options={{
+          title: 'SMT',
+          tabBarIcon: SmtTabIcon,
+          ...(isSmt ? {} : HIDDEN_TAB),
         }}
       />
 

@@ -137,6 +137,68 @@ export interface Order {
 
 // ─── Material Feeding (Stock Out) ────────────────────────────────────────
 
+// ─── STK Data (for Stock In) ─────────────────────────────────────
+
+export interface StkLocation {
+  id: number;
+  rack: string;
+  shelf: string;
+  bin: string;
+  description: string;
+}
+
+export interface StkSupplier {
+  id: number;
+  code: string | null;
+  name: string;
+  address: string | null;
+  phone: string | null;
+  fax: string | null;
+}
+
+export interface StkCustomer {
+  id: number;
+  code: string | null;
+  name: string;
+  address: string | null;
+  phone: string | null;
+  fax: string | null;
+}
+
+export interface StkPart {
+  id: number;
+  inventoryCode: string;
+  partNumber: string;
+  partName: string;
+  location: StkLocation;
+  supplier: StkSupplier;
+  customer: StkCustomer;
+}
+
+export interface StkData {
+  id: number;
+  stkNumber: string;
+  lotNumber: string | null;
+  quantity: number;
+  status: string;
+  moistureProof: boolean;
+  part: StkPart | null;
+  maker: any | null;
+  latestHistory: string | null;
+  expiredDate: string;
+  receivedDate: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StkResponse {
+  status: boolean;
+  message: string;
+  data: StkData;
+}
+
+// ─── Material Feeding (Stock Out) ────────────────────────────────────────
+
 export interface MaterialFeedingItem {
   partBatchId: number;
 }

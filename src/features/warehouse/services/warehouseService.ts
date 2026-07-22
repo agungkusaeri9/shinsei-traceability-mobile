@@ -10,6 +10,7 @@ import {
   Order,
   MaterialFeedingPayload,
   MaterialFeedingResponse,
+  StkResponse,
 } from '../types';
 
 // ─── Suppliers ─────────────────────────────────────────────────────────────
@@ -76,6 +77,15 @@ export const stockIn = async (
         'Content-Type': 'multipart/form-data',
       },
     },
+  );
+  return response.data;
+};
+
+// ─── STK Data ─────────────────────────────────────────────────────────────
+
+export const fetchStkData = async (stkNumber: string): Promise<StkResponse> => {
+  const response = await httpClient.get<StkResponse>(
+    `${API_ENDPOINTS.STKS}/${stkNumber}`,
   );
   return response.data;
 };

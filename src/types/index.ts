@@ -61,12 +61,20 @@ export type AreaStackParamList = {
   StockOut: undefined;
 };
 
+export type SmtStackParamList = {
+  SmtHome: undefined;
+  PartRegister: undefined;
+  PartChanging: undefined;
+  Finish: undefined;
+};
+
 import { NavigatorScreenParams } from '@react-navigation/native';
 
 export type AppTabParamList = {
   Dashboard: undefined;
   Area: NavigatorScreenParams<AreaStackParamList> | undefined;
   Warehouse: NavigatorScreenParams<WarehouseStackParamList> | undefined;
+  SMT: NavigatorScreenParams<SmtStackParamList> | undefined;
   Profile: undefined;
 };
 
