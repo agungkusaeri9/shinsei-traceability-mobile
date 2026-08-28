@@ -51,15 +51,24 @@ const mockActivities: Activity[] = [
   },
 ];
 
-/**
- * Navigate to a warehouse screen.
- * Works with both BottomTab (Warehouse tab) and AreaStack navigation.
- */
 const navigateToWarehouseScreen = (navigation: any, screen: string) => {
-  // Try AreaStack navigation first (direct navigate)
-  // If coming from AreaStack, the screens are direct children
-  if (typeof navigation.navigate === 'function') {
+  if (typeof navigation.navigate !== 'function') {
+    return;
+  }
+
+  const state = navigation.getState?.();
+  const routeNames: string[] = state?.routeNames || [];
+
+  if (routeNames.includes(screen)) {
     navigation.navigate(screen);
+  } else if (routeNames.includes('Warehouse')) {
+    navigation.navigate('Warehouse', { screen });
+  } else {
+    try {
+      navigation.navigate('Warehouse', { screen });
+    } catch {
+      navigation.navigate(screen);
+    }
   }
 };
 

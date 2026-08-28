@@ -33,4 +33,5 @@ export const API_ENDPOINTS = {
   WH_STOCK_INS: '/wh-stock-ins',
   ORDERS: '/Orders',
   MATERIAL_FEEDINGS: '/MaterialFeedings',
+  CHECK_STK_LOCATION: '/locations/check-stk',
 } as const;

@@ -144,7 +144,8 @@ export interface StkLocation {
   rack: string;
   shelf: string;
   bin: string;
-  description: string;
+  position?: string;
+  description?: string;
 }
 
 export interface StkSupplier {
@@ -170,9 +171,10 @@ export interface StkPart {
   inventoryCode: string;
   partNumber: string;
   partName: string;
-  location: StkLocation;
-  supplier: StkSupplier;
-  customer: StkCustomer;
+  location?: StkLocation;
+  locations?: StkLocation[];
+  supplier?: StkSupplier;
+  customer?: StkCustomer;
 }
 
 export interface StkData {
@@ -195,6 +197,19 @@ export interface StkResponse {
   status: boolean;
   message: string;
   data: StkData;
+}
+
+export interface CheckStkLocationPayload {
+  stk: string;
+  rack: string;
+  shelf: string;
+  bin: string;
+}
+
+export interface CheckStkLocationResponse {
+  status: boolean;
+  message: string;
+  data?: any;
 }
 
 // ─── Material Feeding (Stock Out) ────────────────────────────────────────

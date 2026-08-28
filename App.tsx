@@ -39,6 +39,8 @@ const toastConfig = {
       contentContainerStyle={styles.toastContent}
       text1Style={styles.toastTitle}
       text2Style={styles.toastText}
+      text1NumberOfLines={2}
+      text2NumberOfLines={0}
     />
   ),
   error: (props: any) => (
@@ -48,6 +50,8 @@ const toastConfig = {
       contentContainerStyle={styles.toastContent}
       text1Style={styles.toastTitle}
       text2Style={styles.toastText}
+      text1NumberOfLines={2}
+      text2NumberOfLines={0}
     />
   ),
 };
@@ -64,8 +68,8 @@ function App(): React.JSX.Element {
       <Toast
         config={toastConfig}
         position="top"
-        topOffset={60}
-        visibilityTime={2000}
+        topOffset={50}
+        visibilityTime={3500}
       />
     </SafeAreaProvider>
   );
@@ -73,12 +77,14 @@ function App(): React.JSX.Element {
 
 const styles = StyleSheet.create({
   toastSuccess: {
-    width: '90%',
-    maxWidth: 400,
+    width: '92%',
+    maxWidth: 420,
+    height: 'auto',
+    minHeight: 60,
     borderLeftWidth: 0,
     borderRadius: 12,
     backgroundColor: '#22C55E',
-
+    paddingVertical: 6,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -86,15 +92,17 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.15,
     shadowRadius: 8,
-    elevation: 2,
+    elevation: 4,
   },
   toastError: {
-    width: '90%',
-    maxWidth: 400,
+    width: '92%',
+    maxWidth: 420,
+    height: 'auto',
+    minHeight: 60,
     borderLeftWidth: 0,
     borderRadius: 12,
     backgroundColor: '#EF4444',
-
+    paddingVertical: 6,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -102,12 +110,12 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.15,
     shadowRadius: 8,
-    elevation: 2,
+    elevation: 4,
   },
 
   toastContent: {
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 6,
   },
 
   toastTitle: {
@@ -120,6 +128,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 12,
     lineHeight: 18,
+    flexWrap: 'wrap',
   },
 });
 

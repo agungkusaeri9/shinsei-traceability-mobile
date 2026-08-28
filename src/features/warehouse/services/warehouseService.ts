@@ -11,7 +11,21 @@ import {
   MaterialFeedingPayload,
   MaterialFeedingResponse,
   StkResponse,
+  CheckStkLocationPayload,
+  CheckStkLocationResponse,
 } from '../types';
+
+// ─── Location Check ────────────────────────────────────────────────────────
+
+export const checkStkLocation = async (
+  payload: CheckStkLocationPayload,
+): Promise<CheckStkLocationResponse> => {
+  const response = await httpClient.post<CheckStkLocationResponse>(
+    API_ENDPOINTS.CHECK_STK_LOCATION,
+    payload,
+  );
+  return response.data;
+};
 
 // ─── Suppliers ─────────────────────────────────────────────────────────────
 

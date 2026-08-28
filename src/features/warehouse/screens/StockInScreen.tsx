@@ -14,8 +14,8 @@ import {
   ArrowDownToLine,
   ScanBarcode,
   MapPin,
-  Package,
   CheckCircle2,
+  Package,
 } from 'lucide-react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
@@ -25,10 +25,14 @@ import { WarehouseStackParamList } from '../../../types';
 import { colors, shadows } from '../../../theme';
 import Button from '../../../components/Button';
 import { showSuccess, showError } from '../../../services/toastService';
-import type { StkData } from '../types';
+import type { StkData, StkLocation } from '../types';
 import WarehouseHeader from '../components/WarehouseHeader';
 import InfoBanner from '../components/InfoBanner';
-import { fetchStkData, stockIn } from '../services/warehouseService';
+import {
+  fetchStkData,
+  checkStkLocation,
+  stockIn,
+} from '../services/warehouseService';
 
 type Props = {
   navigation: NativeStackNavigationProp<WarehouseStackParamList, 'StockIn'>;
@@ -40,14 +44,21 @@ type PhotoAsset = {
   name: string;
 };
 
-type Step = 'scan' | 'confirm' | 'done';
+type Step = 'scan-stk' | 'scan-rack' | 'confirm' | 'done';
 
 const StockInScreen: React.FC<Props> = ({ navigation }) => {
   const barcodeRef = useRef<TextInput>(null);
-  const [step, setStep] = useState<Step>('scan');
+  const [step, setStep] = useState<Step>('scan-stk');
   const [stkInput, setStkInput] = useState('');
+  const [rackInput, setRackInput] = useState('');
   const [stkData, setStkData] = useState<StkData | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [scannedLocation, setScannedLocation] = useState<{
+    rack: string;
+    shelf: string;
+    bin: string;
+  } | null>(null);
+  const [isLoadingStk, setIsLoadingStk] = useState(false);
+  const [isCheckingRack, setIsCheckingRack] = useState(false);
   const [photo, setPhoto] = useState<PhotoAsset | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -64,7 +75,49 @@ const StockInScreen: React.FC<Props> = ({ navigation }) => {
     }, [step, focusScanner]),
   );
 
-  // ─── Step 1: Scan STK & Fetch Data ────────────────────────────────────
+  // ─── Helper: Get Locations List ──────────────────────────────────────────
+  const getLocationsList = (stk: StkData | null): StkLocation[] => {
+    if (!stk?.part) {
+      return [];
+    }
+    if (stk.part.locations && stk.part.locations.length > 0) {
+      return stk.part.locations;
+    }
+    if (stk.part.location) {
+      return [stk.part.location];
+    }
+    return [];
+  };
+
+  // ─── Helper: Parse Rack Barcode (Format: rack-shelf-bin) ─────────────────
+  const parseRackBarcode = (input: string) => {
+    const trimmed = input.trim();
+    if (!trimmed) {
+      return null;
+    }
+
+    const separator = trimmed.includes('-')
+      ? '-'
+      : trimmed.includes('/')
+      ? '/'
+      : null;
+    if (!separator) {
+      return null;
+    }
+
+    const parts = trimmed.split(separator);
+    if (parts.length >= 3) {
+      const bin = parts[parts.length - 1].trim();
+      const shelf = parts[parts.length - 2].trim();
+      const rack = parts.slice(0, parts.length - 2).join(separator).trim();
+      if (rack && shelf && bin) {
+        return { rack, shelf, bin };
+      }
+    }
+    return null;
+  };
+
+  // ─── Step 1: Scan STK & Fetch Data ──────────────────────────────────────
   const handleScanStk = async (value: string) => {
     const trimmed = value.trim();
     if (!trimmed) {
@@ -72,14 +125,14 @@ const StockInScreen: React.FC<Props> = ({ navigation }) => {
       return;
     }
 
-    setIsLoading(true);
+    setIsLoadingStk(true);
     try {
       const response = await fetchStkData(trimmed);
       if (response.status && response.data) {
         setStkData(response.data);
-        showSuccess(`STK ${trimmed} ditemukan`);
+        showSuccess(`STK ${trimmed} ditemukan. Silakan scan Barcode Rack.`);
         setStkInput('');
-        setStep('confirm');
+        setStep('scan-rack');
       } else {
         showError(response.message || 'STK tidak ditemukan');
         setStkInput('');
@@ -90,11 +143,68 @@ const StockInScreen: React.FC<Props> = ({ navigation }) => {
       setStkInput('');
       focusScanner();
     } finally {
-      setIsLoading(false);
+      setIsLoadingStk(false);
     }
   };
 
-  // ─── Photo ─────────────────────────────────────────────────────────────
+  // ─── Step 2: Scan Rack Barcode & Check Location API ─────────────────────
+  const handleScanRack = async (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      focusScanner();
+      return;
+    }
+
+    if (!stkData) {
+      showError('Data STK tidak tersedia');
+      setStep('scan-stk');
+      return;
+    }
+
+    const parsed = parseRackBarcode(trimmed);
+    if (!parsed) {
+      showError(
+        'Format barcode Rack salah. Gunakan format: Rack-Shelf-Bin (cth: RAK ZZ-ZZ01-1)',
+      );
+      setRackInput('');
+      focusScanner();
+      return;
+    }
+
+    setIsCheckingRack(true);
+    try {
+      const response = await checkStkLocation({
+        stk: stkData.stkNumber,
+        rack: parsed.rack,
+        shelf: parsed.shelf,
+        bin: parsed.bin,
+      });
+
+      if (response.status) {
+        setScannedLocation(parsed);
+        showSuccess(response.message || 'Lokasi Rack sesuai!');
+        setRackInput('');
+        setStep('confirm');
+      } else {
+        showError(
+          response.message ||
+            'Lokasi Rack tidak sesuai. Silakan scan ulang Rack.',
+        );
+        setRackInput('');
+        focusScanner();
+      }
+    } catch (error: any) {
+      const msg =
+        error?.response?.data?.message || 'Gagal mengecek lokasi Rack';
+      showError(msg);
+      setRackInput('');
+      focusScanner();
+    } finally {
+      setIsCheckingRack(false);
+    }
+  };
+
+  // ─── Photo ───────────────────────────────────────────────────────────────
   const handleTakePhoto = () => {
     const options: CameraOptions = {
       mediaType: 'photo',
@@ -127,7 +237,7 @@ const StockInScreen: React.FC<Props> = ({ navigation }) => {
     setPhoto(null);
   };
 
-  // ─── Submit ────────────────────────────────────────────────────────────
+  // ─── Submit Stock In ──────────────────────────────────────────────────────
   const handleSubmit = async () => {
     if (!stkData) {
       showError('Data STK belum tersedia');
@@ -154,23 +264,42 @@ const StockInScreen: React.FC<Props> = ({ navigation }) => {
     }
   };
 
-  // ─── Reset ─────────────────────────────────────────────────────────────
+  // ─── Reset Form ──────────────────────────────────────────────────────────
   const handleReset = () => {
-    setStep('scan');
+    setStep('scan-stk');
     setStkInput('');
+    setRackInput('');
     setStkData(null);
+    setScannedLocation(null);
     setPhoto(null);
-    setIsLoading(false);
+    setIsLoadingStk(false);
+    setIsCheckingRack(false);
     setIsSubmitting(false);
   };
 
-  // ─── Header subtitle ───────────────────────────────────────────────────
+  // ─── Header subtitle ─────────────────────────────────────────────────────
   const headerSubtitle =
-    step === 'scan'
-      ? 'Scan STK Number'
+    step === 'scan-stk'
+      ? 'Step 1: Scan STK Number'
+      : step === 'scan-rack'
+      ? 'Step 2: Scan Barcode Rack'
       : step === 'confirm'
-      ? 'Konfirmasi & Foto'
+      ? 'Step 3: Konfirmasi & Foto'
       : 'Selesai';
+
+  const handleBackHeader = () => {
+    if (step === 'scan-stk') {
+      navigation.goBack();
+    } else if (step === 'scan-rack') {
+      setStep('scan-stk');
+    } else if (step === 'confirm') {
+      setStep('scan-rack');
+    } else {
+      handleReset();
+    }
+  };
+
+  const locationsList = getLocationsList(stkData);
 
   return (
     <View style={styles.container}>
@@ -179,7 +308,7 @@ const StockInScreen: React.FC<Props> = ({ navigation }) => {
         subtitle={headerSubtitle}
         icon={<ArrowDownToLine color={colors.success} size={18} />}
         iconBgColor={`${colors.success}25`}
-        onBack={() => (step === 'scan' ? navigation.goBack() : handleReset())}
+        onBack={handleBackHeader}
       />
 
       <KeyboardAvoidingView
@@ -189,19 +318,27 @@ const StockInScreen: React.FC<Props> = ({ navigation }) => {
         {/* Hidden scanner input */}
         <TextInput
           ref={barcodeRef}
-          value={stkInput}
-          onChangeText={setStkInput}
+          value={step === 'scan-stk' ? stkInput : rackInput}
+          onChangeText={
+            step === 'scan-stk' ? setStkInput : setRackInput
+          }
           autoFocus
           showSoftInputOnFocus={false}
           blurOnSubmit={false}
           returnKeyType="done"
-          onSubmitEditing={() => handleScanStk(stkInput)}
+          onSubmitEditing={() => {
+            if (step === 'scan-stk') {
+              handleScanStk(stkInput);
+            } else if (step === 'scan-rack') {
+              handleScanRack(rackInput);
+            }
+          }}
           onBlur={() => setTimeout(focusScanner, 100)}
           style={styles.hiddenInput}
         />
 
         {/* ── Step 1: Scan STK ─────────────────────────────── */}
-        {step === 'scan' && (
+        {step === 'scan-stk' && (
           <ScrollView
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.scrollContent}
@@ -213,7 +350,7 @@ const StockInScreen: React.FC<Props> = ({ navigation }) => {
               bgColor={`${colors.success}12`}
             />
 
-            {isLoading && (
+            {isLoadingStk && (
               <View style={styles.loadingField}>
                 <ActivityIndicator size="small" color={colors.primary} />
                 <Text style={styles.loadingText}>Mencari data STK...</Text>
@@ -222,15 +359,31 @@ const StockInScreen: React.FC<Props> = ({ navigation }) => {
           </ScrollView>
         )}
 
-        {/* ── Step 2: Confirm & Photo ──────────────────────── */}
-        {step === 'confirm' && stkData && (
+        {/* ── Step 2: Scan Rack ────────────────────────────── */}
+        {step === 'scan-rack' && stkData && (
           <ScrollView
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.scrollContent}
             keyboardShouldPersistTaps="handled"
           >
+            <InfoBanner
+              icon={<ScanBarcode color={colors.primary} size={20} />}
+              text="Scan barcode Rack (Format: Rack-Shelf-Bin)"
+              bgColor={`${colors.primary}12`}
+            />
+
+            {isCheckingRack && (
+              <View style={styles.loadingField}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={styles.loadingText}>
+                  Mengecek keesuaian lokasi Rack...
+                </Text>
+              </View>
+            )}
+
             {/* STK Info Card */}
             <View style={styles.detailCard}>
+              <Text style={styles.cardHeaderTitle}>Informasi STK</Text>
               <DetailRow label="STK Number" value={stkData.stkNumber} />
               <DetailRow label="Status" value={stkData.status} />
               <DetailRow label="Quantity" value={String(stkData.quantity)} />
@@ -252,36 +405,115 @@ const StockInScreen: React.FC<Props> = ({ navigation }) => {
               )}
             </View>
 
-            {/* Location Card */}
-            {stkData.part?.location && (
-              <View style={styles.locationCard}>
+            {/* Target Locations List Card */}
+            {locationsList.length > 0 && (
+              <View style={styles.locationsSection}>
+                <Text style={styles.sectionHeaderTitle}>
+                  Target Lokasi Penyimpanan ({locationsList.length})
+                </Text>
+                {locationsList.map((loc, idx) => (
+                  <View key={loc.id ?? idx} style={styles.locationCard}>
+                    <View style={styles.locationHeader}>
+                      <MapPin color={colors.primary} size={18} />
+                      <Text style={styles.locationTitle}>
+                        Lokasi {locationsList.length > 1 ? `#${idx + 1}` : ''}
+                      </Text>
+                    </View>
+                    <View style={styles.locationGrid}>
+                      <View style={styles.locationItem}>
+                        <Text style={styles.locationLabel}>Rack</Text>
+                        <Text style={styles.locationValue}>{loc.rack}</Text>
+                      </View>
+                      <View style={styles.locationItem}>
+                        <Text style={styles.locationLabel}>Shelf</Text>
+                        <Text style={styles.locationValue}>{loc.shelf}</Text>
+                      </View>
+                      <View style={styles.locationItem}>
+                        <Text style={styles.locationLabel}>Bin</Text>
+                        <Text style={styles.locationValue}>{loc.bin}</Text>
+                      </View>
+                    </View>
+                    {(loc.position || loc.description) && (
+                      <Text style={styles.locationDesc}>
+                        {[loc.position, loc.description]
+                          .filter(Boolean)
+                          .join(' • ')}
+                      </Text>
+                    )}
+                  </View>
+                ))}
+              </View>
+            )}
+
+            <Button
+              title="Batal / Scan STK Lain"
+              variant="outline"
+              onPress={handleReset}
+              style={{ marginTop: 12 }}
+            />
+          </ScrollView>
+        )}
+
+        {/* ── Step 3: Confirm & Photo ──────────────────────── */}
+        {step === 'confirm' && stkData && (
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+          >
+            {/* STK Info Card */}
+            <View style={styles.detailCard}>
+              <Text style={styles.cardHeaderTitle}>Informasi STK</Text>
+              <DetailRow label="STK Number" value={stkData.stkNumber} />
+              <DetailRow label="Status" value={stkData.status} />
+              <DetailRow label="Quantity" value={String(stkData.quantity)} />
+              {stkData.lotNumber && (
+                <DetailRow label="Lot Number" value={stkData.lotNumber} />
+              )}
+              {stkData.part && (
+                <>
+                  <DetailRow
+                    label="Part Number"
+                    value={stkData.part.partNumber}
+                  />
+                  <DetailRow label="Part Name" value={stkData.part.partName} />
+                  <DetailRow
+                    label="Inventory Code"
+                    value={stkData.part.inventoryCode}
+                  />
+                </>
+              )}
+            </View>
+
+            {/* Verified Scanned Location Card */}
+            {scannedLocation && (
+              <View style={[styles.locationCard, styles.verifiedCard]}>
                 <View style={styles.locationHeader}>
-                  <MapPin color={colors.primary} size={20} />
-                  <Text style={styles.locationTitle}>Lokasi Penyimpanan</Text>
+                  <CheckCircle2 color={colors.success} size={18} />
+                  <Text style={[styles.locationTitle, { color: colors.success }]}>
+                    Lokasi Terverifikasi (Match)
+                  </Text>
                 </View>
                 <View style={styles.locationGrid}>
                   <View style={styles.locationItem}>
                     <Text style={styles.locationLabel}>Rack</Text>
                     <Text style={styles.locationValue}>
-                      {stkData.part.location.rack}
+                      {scannedLocation.rack}
                     </Text>
                   </View>
                   <View style={styles.locationItem}>
                     <Text style={styles.locationLabel}>Shelf</Text>
                     <Text style={styles.locationValue}>
-                      {stkData.part.location.shelf}
+                      {scannedLocation.shelf}
                     </Text>
                   </View>
                   <View style={styles.locationItem}>
                     <Text style={styles.locationLabel}>Bin</Text>
                     <Text style={styles.locationValue}>
-                      {stkData.part.location.bin}
+                      {scannedLocation.bin}
                     </Text>
                   </View>
                 </View>
-                <Text style={styles.locationDesc}>
-                  {stkData.part.location.description}
-                </Text>
               </View>
             )}
 
@@ -312,9 +544,9 @@ const StockInScreen: React.FC<Props> = ({ navigation }) => {
 
             <View style={styles.buttonRow}>
               <Button
-                title="Batal"
+                title="Scan Rack Lagi"
                 variant="outline"
-                onPress={handleReset}
+                onPress={() => setStep('scan-rack')}
                 style={styles.halfBtn}
               />
               <Button
@@ -328,7 +560,7 @@ const StockInScreen: React.FC<Props> = ({ navigation }) => {
           </ScrollView>
         )}
 
-        {/* ── Step 3: Done ─────────────────────────────────── */}
+        {/* ── Step 4: Done ─────────────────────────────────── */}
         {step === 'done' && stkData && (
           <ScrollView
             showsVerticalScrollIndicator={false}
@@ -351,10 +583,10 @@ const StockInScreen: React.FC<Props> = ({ navigation }) => {
                   value={stkData.part?.partNumber ?? 'N/A'}
                 />
                 <DetailRow label="Quantity" value={String(stkData.quantity)} />
-                {stkData.part?.location && (
+                {scannedLocation && (
                   <DetailRow
-                    label="Rack"
-                    value={`${stkData.part.location.rack} / ${stkData.part.location.shelf} / ${stkData.part.location.bin}`}
+                    label="Verified Rack"
+                    value={`${scannedLocation.rack} / ${scannedLocation.shelf} / ${scannedLocation.bin}`}
                   />
                 )}
               </View>
@@ -389,7 +621,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingVertical: 16,
+    paddingVertical: 12,
+    marginBottom: 12,
   },
   loadingText: {
     fontSize: 13,
@@ -403,6 +636,15 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 16,
     ...shadows.sm,
+  },
+  cardHeaderTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: `${colors.textMuted}15`,
+    paddingBottom: 6,
   },
   detailRow: {
     flexDirection: 'row',
@@ -418,58 +660,72 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
 
-  // Location Card
+  // Locations Section
+  locationsSection: {
+    marginBottom: 16,
+  },
+  sectionHeaderTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 10,
+  },
   locationCard: {
     backgroundColor: `${colors.primary}08`,
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
+    padding: 14,
+    marginBottom: 10,
     borderWidth: 1,
     borderColor: `${colors.primary}20`,
+  },
+  verifiedCard: {
+    backgroundColor: `${colors.success}08`,
+    borderColor: `${colors.success}30`,
+    marginBottom: 16,
   },
   locationHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 12,
+    marginBottom: 10,
   },
   locationTitle: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
     color: colors.textPrimary,
   },
   locationGrid: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 10,
   },
   locationItem: {
     flex: 1,
     backgroundColor: colors.surface,
     borderRadius: 8,
-    padding: 10,
+    padding: 8,
     alignItems: 'center',
     ...shadows.sm,
   },
   locationLabel: {
     fontSize: 11,
     color: colors.textMuted,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   locationValue: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
     color: colors.primary,
   },
   locationDesc: {
     fontSize: 12,
     color: colors.textSecondary,
-    marginTop: 10,
+    marginTop: 8,
     textAlign: 'center',
   },
 
   // Photo Section
   photoSection: {
-    marginTop: 16,
+    marginBottom: 16,
     backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
