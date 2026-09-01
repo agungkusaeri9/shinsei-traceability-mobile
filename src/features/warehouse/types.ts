@@ -59,6 +59,9 @@ export interface PartAcceptanceResponse {
 
 export interface StockInPayload {
   stkNumber: string;
+  rack: string;
+  shelf?: string;
+  bin?: string;
   evidencePhoto?: {
     uri: string;
     type: string;

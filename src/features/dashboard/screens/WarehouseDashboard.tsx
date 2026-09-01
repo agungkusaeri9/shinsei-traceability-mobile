@@ -79,9 +79,6 @@ const WarehouseDashboard: React.FC<Props> = ({
 
   const renderHeader = () => (
     <View>
-      {/* ── Real API Warehouse Summary Widget ────────────────────────────── */}
-      {whSummary && <WarehouseSummaryWidget data={whSummary} />}
-
       {/* ── Quick Actions ────────────────────────────── */}
       <Text style={styles.sectionTitle}>Quick Actions</Text>
       <View style={styles.statsRow}>
@@ -99,7 +96,11 @@ const WarehouseDashboard: React.FC<Props> = ({
         />
       </View>
 
-      {!showCustomHeader && (
+      {/* ── Real API Warehouse Summary Widget ────────────────────────────── */}
+      {whSummary && <WarehouseSummaryWidget data={whSummary} />}
+
+
+      {/* {!showCustomHeader && (
         <View style={styles.statsRow}>
           <QuickActionCard
             title="Profile"
@@ -108,7 +109,7 @@ const WarehouseDashboard: React.FC<Props> = ({
             onPress={() => navigation.navigate('Profile')}
           />
         </View>
-      )}
+      )} */}
 
       {/* ── Recent Acceptances (Real API Data) ──────────────────────────── */}
       <RecentAcceptancesWidget data={recentAcceptances} />

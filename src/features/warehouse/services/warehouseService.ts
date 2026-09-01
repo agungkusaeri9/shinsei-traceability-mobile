@@ -75,6 +75,15 @@ export const stockIn = async (
 ): Promise<StockInResponse> => {
   const formData = new FormData();
   formData.append('StkNumber', data.stkNumber);
+  if (data.rack) {
+    formData.append('Rack', data.rack);
+  }
+  if (data.shelf) {
+    formData.append('Shelf', data.shelf);
+  }
+  if (data.bin) {
+    formData.append('Bin', data.bin);
+  }
   if (data.evidencePhoto) {
     formData.append('EvidencePhoto', {
       uri: data.evidencePhoto.uri,

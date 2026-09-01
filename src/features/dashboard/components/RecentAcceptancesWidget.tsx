@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { PackageCheck, MapPin, Calendar, Building2 } from 'lucide-react-native';
+import { PackageCheck, MapPin, Calendar, Building2, Package } from 'lucide-react-native';
 import { colors, shadows } from '../../../theme';
 import { RecentAcceptanceItem } from '../services/dashboardService';
 
@@ -29,10 +29,13 @@ export const RecentAcceptancesWidget: React.FC<Props> = ({ data }) => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.sectionTitle}>Penerimaan Part Terkini (Recent Acceptances)</Text>
+      <Text style={styles.sectionTitle}>
+        Penerimaan Part Terkini (Recent Acceptances)
+      </Text>
       <View style={styles.list}>
         {data.map(item => (
           <View key={item.id} style={styles.card}>
+            {/* Header: STK Number & Status */}
             <View style={styles.cardHeader}>
               <View style={styles.badgeStk}>
                 <PackageCheck size={14} color={colors.primary} />
@@ -43,32 +46,33 @@ export const RecentAcceptancesWidget: React.FC<Props> = ({ data }) => {
               </View>
             </View>
 
+            {/* Part Name & Code */}
             <Text style={styles.partName}>{item.partName}</Text>
             <Text style={styles.partCode}>{item.partCode}</Text>
 
             <View style={styles.divider} />
 
-            <View style={styles.detailsRow}>
-              <View style={styles.detailItem}>
-                <Building2 size={13} color={colors.textMuted} />
-                <Text style={styles.detailText} numberOfLines={1}>
-                  {item.supplierName}
-                </Text>
-              </View>
+            {/* Supplier Name */}
+            <View style={styles.detailRow}>
+              <Building2 size={13} color={colors.textMuted} />
+              <Text style={styles.supplierText} numberOfLines={1}>
+                {item.supplierName}
+              </Text>
             </View>
 
+            {/* Footer: Location & Date */}
             <View style={styles.footerRow}>
               <View style={styles.detailItem}>
-                <MapPin size={13} color={colors.primary} />
-                <Text style={styles.locationText}>Lokasi: {item.rackLocation}</Text>
-              </View>
-
-              <View style={styles.detailItem}>
                 <Calendar size={13} color={colors.textMuted} />
-                <Text style={styles.dateText}>{formatDate(item.receivedDate)}</Text>
+                <Text style={styles.dateText}>
+                  {formatDate(item.receivedDate)}
+                </Text>
+              </View>
+              <View style={styles.detailItem}>
+                <Package size={13} color={colors.primary} />
+                <Text style={styles.qtyValueText}>{item.quantity.toLocaleString()} pcs</Text>
               </View>
 
-              <Text style={styles.qtyText}>{item.quantity.toLocaleString()} pcs</Text>
             </View>
           </View>
         ))}
@@ -101,7 +105,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 10,
   },
   badgeStk: {
     flexDirection: 'row',
@@ -143,23 +147,38 @@ const styles = StyleSheet.create({
     backgroundColor: colors.border,
     marginVertical: 10,
   },
-  detailsRow: {
+  detailRow: {
     flexDirection: 'row',
-    marginBottom: 8,
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 6,
+  },
+  supplierText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    flex: 1,
+  },
+  qtyLabelText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  qtyValueText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: colors.textPrimary,
   },
   footerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 2,
   },
   detailItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-  },
-  detailText: {
-    fontSize: 12,
-    color: colors.textSecondary,
   },
   locationText: {
     fontSize: 12,
@@ -169,10 +188,5 @@ const styles = StyleSheet.create({
   dateText: {
     fontSize: 11,
     color: colors.textMuted,
-  },
-  qtyText: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: colors.textPrimary,
   },
 });

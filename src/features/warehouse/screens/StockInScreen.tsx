@@ -99,8 +99,8 @@ const StockInScreen: React.FC<Props> = ({ navigation }) => {
     const separator = trimmed.includes('-')
       ? '-'
       : trimmed.includes('/')
-      ? '/'
-      : null;
+        ? '/'
+        : null;
     if (!separator) {
       return null;
     }
@@ -173,6 +173,8 @@ const StockInScreen: React.FC<Props> = ({ navigation }) => {
 
     setIsCheckingRack(true);
     try {
+      /*
+      // Commented out API check as per requirement
       const response = await checkStkLocation({
         stk: stkData.stkNumber,
         rack: parsed.rack,
@@ -193,10 +195,41 @@ const StockInScreen: React.FC<Props> = ({ navigation }) => {
         setRackInput('');
         focusScanner();
       }
+      */
+
+      const validLocations = getLocationsList(stkData);
+
+      const isMatch =
+        validLocations.length === 0 ||
+        validLocations.some(loc => {
+          const rackMatch =
+            !loc.rack ||
+            loc.rack.trim().toLowerCase() === parsed.rack.trim().toLowerCase();
+          const shelfMatch =
+            !loc.shelf ||
+            loc.shelf.trim().toLowerCase() === parsed.shelf.trim().toLowerCase();
+          const binMatch =
+            !loc.bin ||
+            loc.bin.trim().toLowerCase() === parsed.bin.trim().toLowerCase();
+          return rackMatch && shelfMatch && binMatch;
+        });
+
+      if (isMatch) {
+        setScannedLocation(parsed);
+        showSuccess('Lokasi Rack sesuai!');
+        setRackInput('');
+        setStep('confirm');
+      } else {
+        showError('Lokasi Rack tidak sesuai. Silakan scan ulang Rack.');
+        setRackInput('');
+        focusScanner();
+      }
     } catch (error: any) {
-      const msg =
-        error?.response?.data?.message || 'Gagal mengecek lokasi Rack';
-      showError(msg);
+      // const msg =
+      //   error?.response?.data?.message || 'Gagal mengecek lokasi Rack';
+      // showError(msg);
+      showError('Gagal memvalidasi lokasi Rack');
+
       setRackInput('');
       focusScanner();
     } finally {
@@ -244,10 +277,18 @@ const StockInScreen: React.FC<Props> = ({ navigation }) => {
       return;
     }
 
+    if (!scannedLocation?.rack) {
+      showError('Data barcode Rack belum discan');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       await stockIn({
         stkNumber: stkData.stkNumber,
+        rack: scannedLocation.rack,
+        shelf: scannedLocation.shelf,
+        bin: scannedLocation.bin,
         evidencePhoto: photo ?? undefined,
       });
       showSuccess(
@@ -282,10 +323,10 @@ const StockInScreen: React.FC<Props> = ({ navigation }) => {
     step === 'scan-stk'
       ? 'Step 1: Scan STK Number'
       : step === 'scan-rack'
-      ? 'Step 2: Scan Barcode Rack'
-      : step === 'confirm'
-      ? 'Step 3: Konfirmasi & Foto'
-      : 'Selesai';
+        ? 'Step 2: Scan Barcode Rack'
+        : step === 'confirm'
+          ? 'Step 3: Konfirmasi & Foto'
+          : 'Selesai';
 
   const handleBackHeader = () => {
     if (step === 'scan-stk') {
