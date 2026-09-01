@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, FlatList } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, StyleSheet, FlatList, RefreshControl } from 'react-native';
 import {
   ClipboardList,
   ArrowLeftRight,
@@ -54,6 +54,12 @@ const SmtDashboard: React.FC<Props> = ({
   navigation,
   showCustomHeader = false,
 }) => {
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    setTimeout(() => setRefreshing(false), 1200);
+  }, []);
+
   const renderHeader = () => (
     <View>
       {/* ── SMT Stats ──────────────────────────────────── */}
@@ -150,6 +156,14 @@ const SmtDashboard: React.FC<Props> = ({
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+          />
+        }
       />
     </View>
   );

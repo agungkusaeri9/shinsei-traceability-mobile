@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   ScrollView,
   StatusBar,
   TouchableOpacity,
+  RefreshControl,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
@@ -36,6 +37,11 @@ interface AreaItem {
 
 const AreaScreen: React.FC<Props> = ({ navigation }) => {
   const { user } = useAuth();
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    setTimeout(() => setRefreshing(false), 1200);
+  }, []);
 
   const areas: AreaItem[] = [
     {
@@ -89,6 +95,14 @@ const AreaScreen: React.FC<Props> = ({ navigation }) => {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#1A73E8']}
+            tintColor="#1A73E8"
+          />
+        }
       >
         {/* ── Area List ────────────────────────────────── */}
         <Text style={styles.sectionTitle}>Daftar Area</Text>

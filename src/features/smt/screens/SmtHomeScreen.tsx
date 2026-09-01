@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   ScrollView,
   StatusBar,
   TouchableOpacity,
+  RefreshControl,
 } from 'react-native';
 import {
   ClipboardList,
@@ -26,6 +27,11 @@ type Props = {
 const SmtHomeScreen: React.FC<Props> = ({ navigation }) => {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    setTimeout(() => setRefreshing(false), 1200);
+  }, []);
 
   const menuItems = [
     {
@@ -75,6 +81,14 @@ const SmtHomeScreen: React.FC<Props> = ({ navigation }) => {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+          />
+        }
       >
         <Text style={styles.sectionTitle}>Menu SMT</Text>
         <View style={styles.actionsGrid}>

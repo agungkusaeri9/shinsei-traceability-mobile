@@ -1,13 +1,11 @@
-import React from 'react';
-import { View, Text, StyleSheet, FlatList } from 'react-native';
+import React, { useState, useCallback, useEffect } from 'react';
+import { View, Text, StyleSheet, FlatList, RefreshControl } from 'react-native';
 import {
   Users,
   Building2,
   ShoppingCart,
   UserCheck,
   MapPin,
-  FileText,
-  Settings,
 } from 'lucide-react-native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 
@@ -16,44 +14,58 @@ import { colors } from '../../../theme';
 import DashboardHeader from '../components/DashboardHeader';
 import DashboardCard from '../components/DashboardCard';
 import QuickActionCard from '../components/QuickActionCard';
-import ActivityItem, { Activity } from '../components/ActivityItem';
+import {
+  getTrackingSummary,
+  getStkTrackingTable,
+  getWarehouseSummary,
+  getStkByArea,
+  TrackingSummaryData,
+  StkTrackingItem,
+  WarehouseSummaryData,
+  StkByAreaItem,
+} from '../services/dashboardService';
+import { WarehouseSummaryWidget } from '../components/WarehouseSummaryWidget';
+import { StkTrackingTableWidget } from '../components/StkTrackingTableWidget';
+import { StkByAreaWidget } from '../components/StkByAreaWidget';
 
 type Props = {
   navigation: BottomTabNavigationProp<AppTabParamList, 'Dashboard'>;
 };
 
-const mockActivities: Activity[] = [
-  {
-    id: '1',
-    title: 'User baru terdaftar',
-    description: 'Akun Budi_Santoso dibuat oleh sistem',
-    time: '15 menit lalu',
-    type: 'user',
-  },
-  {
-    id: '2',
-    title: 'Konfigurasi diperbarui',
-    description: 'Threshold QC batch diperbarui menjadi 5%',
-    time: '1 jam lalu',
-    type: 'config',
-  },
-  {
-    id: '3',
-    title: 'Backup sistem selesai',
-    description: 'Database berhasil di-backup (1.2 GB)',
-    time: '3 jam lalu',
-    type: 'system',
-  },
-  {
-    id: '4',
-    title: 'Akses dicabut',
-    description: 'Akun Andi_Wirawan dinonaktifkan',
-    time: '5 jam lalu',
-    type: 'user',
-  },
-];
-
 const SuperAdminDashboard: React.FC<Props> = ({ navigation }) => {
+  const [refreshing, setRefreshing] = useState(false);
+  const [trackingSummary, setTrackingSummary] = useState<TrackingSummaryData | null>(null);
+  const [stkTrackingTable, setStkTrackingTable] = useState<StkTrackingItem[]>([]);
+  const [whSummary, setWhSummary] = useState<WarehouseSummaryData | null>(null);
+  const [stkByArea, setStkByArea] = useState<StkByAreaItem[]>([]);
+
+  const loadData = useCallback(async () => {
+    try {
+      const [summaryRes, tableRes, whRes, areaRes] = await Promise.all([
+        getTrackingSummary(),
+        getStkTrackingTable(),
+        getWarehouseSummary(),
+        getStkByArea(),
+      ]);
+      setTrackingSummary(summaryRes);
+      setStkTrackingTable(tableRes);
+      setWhSummary(whRes);
+      setStkByArea(areaRes);
+    } catch (e) {
+      console.log('Error loading SuperAdminDashboard data:', e);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadData();
+    setRefreshing(false);
+  }, [loadData]);
+
   const renderHeader = () => (
     <View>
       {/* ── System Stats ─────────────────────────────── */}
@@ -91,6 +103,20 @@ const SuperAdminDashboard: React.FC<Props> = ({ navigation }) => {
         />
       </View>
 
+      {/* ── Warehouse Summary Widget ── */}
+      {whSummary && <WarehouseSummaryWidget data={whSummary} />}
+
+      {/* ── STK By Area Distribution Widget ── */}
+      <StkByAreaWidget data={stkByArea} />
+
+      {/* ── STK Tracking Table Widget ── */}
+      {trackingSummary && (
+        <StkTrackingTableWidget
+          summary={trackingSummary}
+          stkList={stkTrackingTable}
+        />
+      )}
+
       {/* ── Quick Actions ────────────────────────────── */}
       <Text style={[styles.sectionTitle, styles.sectionGap]}>
         Manajemen Cepat
@@ -109,21 +135,6 @@ const SuperAdminDashboard: React.FC<Props> = ({ navigation }) => {
           onPress={() => navigation.navigate('Area')}
         />
       </View>
-      {/* <View style={styles.statsRow}>
-        <QuickActionCard
-          title="Laporan"
-          color={colors.primary}
-          icon={<FileText color={colors.primary} size={22} />}
-        />
-        <QuickActionCard
-          title="Pengaturan"
-          color={colors.purple}
-          icon={<Settings color={colors.purple} size={22} />}
-        />
-      </View> */}
-
-      {/* ── Audit Log ────────────────────────────────── */}
-      <Text style={[styles.sectionTitle, styles.sectionGap]}>Log Sistem</Text>
     </View>
   );
 
@@ -135,13 +146,19 @@ const SuperAdminDashboard: React.FC<Props> = ({ navigation }) => {
       />
 
       <FlatList
-        data={mockActivities}
-        keyExtractor={item => item.id}
-        renderItem={({ item }) => <ActivityItem activity={item} />}
+        data={[]}
+        renderItem={null}
         ListHeaderComponent={renderHeader}
-        ItemSeparatorComponent={() => <View style={styles.separator} />}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+          />
+        }
       />
     </View>
   );
@@ -160,7 +177,6 @@ const styles = StyleSheet.create({
   sectionGap: { marginTop: 20 },
   statsRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
   cardHalf: { flex: 1 },
-  separator: { height: 12 },
 });
 
 export default SuperAdminDashboard;

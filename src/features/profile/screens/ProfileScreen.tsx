@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   ScrollView,
   StatusBar,
   TouchableOpacity,
+  RefreshControl,
 } from 'react-native';
 import { AppTabParamList } from '../../../types';
 import ProfileHeader from '../components/ProfileHeader';
@@ -36,6 +37,11 @@ const menuItems = [
 const ProfileScreen: React.FC<Props> = ({ navigation }) => {
   const { user, logout } = useAuth();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    setTimeout(() => setRefreshing(false), 1200);
+  }, []);
 
   const mockUser = user ?? {
     id: '1',
@@ -51,6 +57,14 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#1A73E8']}
+            tintColor="#1A73E8"
+          />
+        }
       >
         <ProfileHeader user={mockUser} />
 

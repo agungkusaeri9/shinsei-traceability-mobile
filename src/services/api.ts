@@ -18,6 +18,11 @@ export const API_ENDPOINTS = {
   // Dashboard
   DASHBOARD: '/dashboard',
   DASHBOARD_STATS: '/dashboard/stats',
+  TRACKING_SUMMARY: '/Dashboard/tracking-summary',
+  STK_TRACKING_TABLE: '/Dashboard/stk-tracking-table',
+  WAREHOUSE_SUMMARY: '/Dashboard/warehouse-summary',
+  RECENT_ACCEPTANCES: '/Dashboard/recent-acceptances',
+  STK_BY_AREA: '/Dashboard/stk-by-area',
 
   // SMT
   ORDER_LOT: '/orders/lot',

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,15 +6,11 @@ import {
   ScrollView,
   StatusBar,
   TouchableOpacity,
+  RefreshControl,
 } from 'react-native';
 import {
   ArrowDownToLine,
   ArrowUpFromLine,
-  ClipboardList,
-  Package,
-  AlertTriangle,
-  TrendingUp,
-  TrendingDown,
 } from 'lucide-react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
@@ -22,6 +18,14 @@ import { WarehouseStackParamList } from '../../../types';
 import { colors, shadows } from '../../../theme';
 import { useAuth } from '../../../hooks/useAuth';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  getWarehouseSummary,
+  getRecentAcceptances,
+  WarehouseSummaryData,
+  RecentAcceptanceItem,
+} from '../../dashboard/services/dashboardService';
+import { WarehouseSummaryWidget } from '../../dashboard/components/WarehouseSummaryWidget';
+import { RecentAcceptancesWidget } from '../../dashboard/components/RecentAcceptancesWidget';
 
 type Props = {
   navigation: NativeStackNavigationProp<
@@ -30,44 +34,35 @@ type Props = {
   >;
 };
 
-const recentMovements = [
-  {
-    id: '1',
-    type: 'in',
-    product: 'Bearing Assembly A-100',
-    qty: 120,
-    ref: 'IN-2024-001',
-    time: '10 menit lalu',
-  },
-  {
-    id: '2',
-    type: 'out',
-    product: 'Sensor Proximity M-22',
-    qty: 35,
-    ref: 'OUT-2024-014',
-    time: '45 menit lalu',
-  },
-  {
-    id: '3',
-    type: 'in',
-    product: 'Cable Harness V2',
-    qty: 200,
-    ref: 'IN-2024-002',
-    time: '2 jam lalu',
-  },
-  {
-    id: '4',
-    type: 'out',
-    product: 'Motor DC 24V',
-    qty: 18,
-    ref: 'OUT-2024-015',
-    time: '4 jam lalu',
-  },
-];
-
 const WarehouseScreen: React.FC<Props> = ({ navigation }) => {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
+  const [refreshing, setRefreshing] = useState(false);
+  const [whSummary, setWhSummary] = useState<WarehouseSummaryData | null>(null);
+  const [recentAcceptances, setRecentAcceptances] = useState<RecentAcceptanceItem[]>([]);
+
+  const loadData = useCallback(async () => {
+    try {
+      const [summaryRes, acceptancesRes] = await Promise.all([
+        getWarehouseSummary(),
+        getRecentAcceptances(),
+      ]);
+      setWhSummary(summaryRes);
+      setRecentAcceptances(acceptancesRes);
+    } catch (e) {
+      console.log('Error loading warehouse screen data:', e);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadData();
+    setRefreshing(false);
+  }, [loadData]);
 
   return (
     <View style={styles.container}>
@@ -92,56 +87,21 @@ const WarehouseScreen: React.FC<Props> = ({ navigation }) => {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[colors.orange]}
+            tintColor={colors.orange}
+          />
+        }
       >
-        {/* ── Stats Overview ───────────────────────────── */}
-        <View style={styles.statsRow}>
-          <View style={styles.statCard}>
-            <View
-              style={[
-                styles.statIconBadge,
-                { backgroundColor: `${colors.primary}20` },
-              ]}
-            >
-              <Package color={colors.primary} size={20} />
-            </View>
-            <Text style={styles.statNumber}>1.2K</Text>
-            <Text style={styles.statLabel}>Total Stok</Text>
-          </View>
-          <View style={styles.statCard}>
-            <View
-              style={[
-                styles.statIconBadge,
-                { backgroundColor: `${colors.warning}20` },
-              ]}
-            >
-              <AlertTriangle color={colors.warning} size={20} />
-            </View>
-            <Text style={styles.statNumber}>8</Text>
-            <Text style={styles.statLabel}>Stok Menipis</Text>
-          </View>
-        </View>
+        {/* ── Warehouse Summary Widget (Real API Data) ── */}
+        {whSummary && <WarehouseSummaryWidget data={whSummary} />}
 
         {/* ── Main Actions ─────────────────────────────── */}
         <Text style={styles.sectionTitle}>Menu Gudang</Text>
         <View style={styles.actionsRow}>
-          {/* Register - disabled, moved to SMT Part Register */}
-          {/* <TouchableOpacity
-            activeOpacity={0.7}
-            style={[styles.actionCard, { borderColor: `${colors.primary}30` }]}
-            onPress={() => navigation.navigate('Register')}
-          >
-            <View
-              style={[
-                styles.actionIconBadge,
-                { backgroundColor: `${colors.primary}20` },
-              ]}
-            >
-              <ClipboardList color={colors.primary} size={28} />
-            </View>
-            <Text style={styles.actionTitle}>Register</Text>
-            <Text style={styles.actionDesc}>Daftarkan part</Text>
-          </TouchableOpacity> */}
-
           <TouchableOpacity
             activeOpacity={0.7}
             style={[styles.actionCard, { borderColor: `${colors.success}30` }]}
@@ -177,75 +137,8 @@ const WarehouseScreen: React.FC<Props> = ({ navigation }) => {
           </TouchableOpacity>
         </View>
 
-        {/* ── Movement Summary ─────────────────────────── */}
-        <View style={styles.summaryRow}>
-          <View
-            style={[styles.summaryCard, { borderLeftColor: colors.success }]}
-          >
-            <TrendingUp color={colors.success} size={18} />
-            <View style={styles.summaryText}>
-              <Text style={styles.summaryValue}>340</Text>
-              <Text style={styles.summaryLabel}>Masuk Hari Ini</Text>
-            </View>
-          </View>
-          <View
-            style={[styles.summaryCard, { borderLeftColor: colors.orange }]}
-          >
-            <TrendingDown color={colors.orange} size={18} />
-            <View style={styles.summaryText}>
-              <Text style={styles.summaryValue}>53</Text>
-              <Text style={styles.summaryLabel}>Keluar Hari Ini</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* ── Recent Movements ─────────────────────────── */}
-        <Text style={[styles.sectionTitle, { marginTop: 8 }]}>
-          Pergerakan Terkini
-        </Text>
-        <View style={styles.movementList}>
-          {recentMovements.map(m => (
-            <View key={m.id} style={styles.movementItem}>
-              <View
-                style={[
-                  styles.movementIcon,
-                  {
-                    backgroundColor:
-                      m.type === 'in'
-                        ? `${colors.success}20`
-                        : `${colors.orange}20`,
-                  },
-                ]}
-              >
-                {m.type === 'in' ? (
-                  <ArrowDownToLine color={colors.success} size={18} />
-                ) : (
-                  <ArrowUpFromLine color={colors.orange} size={18} />
-                )}
-              </View>
-              <View style={styles.movementInfo}>
-                <Text style={styles.movementProduct} numberOfLines={1}>
-                  {m.product}
-                </Text>
-                <Text style={styles.movementRef}>{m.ref}</Text>
-              </View>
-              <View style={styles.movementRight}>
-                <Text
-                  style={[
-                    styles.movementQty,
-                    {
-                      color: m.type === 'in' ? colors.success : colors.orange,
-                    },
-                  ]}
-                >
-                  {m.type === 'in' ? '+' : '-'}
-                  {m.qty}
-                </Text>
-                <Text style={styles.movementTime}>{m.time}</Text>
-              </View>
-            </View>
-          ))}
-        </View>
+        {/* ── Recent Acceptances (Real API Data) ─────────────────────────── */}
+        <RecentAcceptancesWidget data={recentAcceptances} />
       </ScrollView>
     </View>
   );
@@ -284,26 +177,6 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
 
-  // Stats
-  statsRow: { flexDirection: 'row', gap: 12, marginBottom: 20 },
-  statCard: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 16,
-    ...shadows.md,
-  },
-  statIconBadge: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  statNumber: { fontSize: 24, fontWeight: '800', color: colors.textPrimary },
-  statLabel: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
-
   // Actions
   actionsRow: { flexDirection: 'row', gap: 12, marginBottom: 20 },
   actionCard: {
@@ -330,51 +203,6 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   actionDesc: { fontSize: 12, color: colors.textSecondary },
-
-  // Summary
-  summaryRow: { flexDirection: 'row', gap: 12, marginBottom: 8 },
-  summaryCard: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 16,
-    borderLeftWidth: 4,
-    ...shadows.sm,
-  },
-  summaryText: { marginLeft: 12 },
-  summaryValue: { fontSize: 20, fontWeight: '800', color: colors.textPrimary },
-  summaryLabel: { fontSize: 11, color: colors.textSecondary, marginTop: 2 },
-
-  // Movement List
-  movementList: { gap: 12 },
-  movementItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 14,
-    ...shadows.sm,
-  },
-  movementIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  movementInfo: { flex: 1 },
-  movementProduct: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  movementRef: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
-  movementRight: { alignItems: 'flex-end' },
-  movementQty: { fontSize: 15, fontWeight: '700' },
-  movementTime: { fontSize: 11, color: colors.textMuted, marginTop: 2 },
 });
 
 export default WarehouseScreen;
