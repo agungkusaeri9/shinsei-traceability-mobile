@@ -55,9 +55,10 @@ const AreaScreen: React.FC<Props> = ({ navigation }) => {
     {
       id: '2',
       name: 'SMT',
-      description: 'Surface Mount Technology',
-      icon: <Cpu color="#9CA3AF" size={28} />,
-      available: false,
+      description: 'Kelola registrasi part, pergantian part, dan finish SMT',
+      icon: <Cpu color={colors.primary} size={28} />,
+      available: true,
+      onPress: () => navigation.navigate('SmtDashboard'),
     },
     {
       id: '3',

@@ -44,9 +44,37 @@ const mockActivities: Activity[] = [
 ];
 
 const navigateToSmtScreen = (navigation: any, screen: string) => {
-  // Navigate to SMT tab screens via parent navigator
-  if (typeof navigation.navigate === 'function') {
-    navigation.navigate('SMT', { screen });
+  if (!navigation || typeof navigation.navigate !== 'function') return;
+
+  // 1. Check if the target screen exists directly in current navigator or any parent navigator
+  let currentNav = navigation;
+  while (currentNav) {
+    const state = currentNav.getState?.();
+    const routeNames: string[] = state?.routeNames || [];
+    if (routeNames.includes(screen)) {
+      currentNav.navigate(screen);
+      return;
+    }
+    currentNav = currentNav.getParent?.();
+  }
+
+  // 2. Fallback: Check if 'SMT' tab exists in any parent navigator
+  currentNav = navigation;
+  while (currentNav) {
+    const state = currentNav.getState?.();
+    const routeNames: string[] = state?.routeNames || [];
+    if (routeNames.includes('SMT')) {
+      currentNav.navigate('SMT', { screen });
+      return;
+    }
+    currentNav = currentNav.getParent?.();
+  }
+
+  // 3. Final fallback
+  try {
+    navigation.navigate(screen);
+  } catch (err) {
+    console.warn('navigateToSmtScreen failed for:', screen, err);
   }
 };
 

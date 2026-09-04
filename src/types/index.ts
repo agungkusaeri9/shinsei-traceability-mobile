@@ -59,6 +59,11 @@ export type AreaStackParamList = {
   Register: undefined;
   StockIn: { registeredData?: RegisteredPart } | undefined;
   StockOut: undefined;
+  SmtDashboard: undefined;
+  SmtHome: undefined;
+  PartRegister: undefined;
+  PartChanging: undefined;
+  Finish: undefined;
 };
 
 export type SmtStackParamList = {

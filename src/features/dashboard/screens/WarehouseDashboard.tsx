@@ -16,6 +16,10 @@ import {
 } from '../services/dashboardService';
 import { WarehouseSummaryWidget } from '../components/WarehouseSummaryWidget';
 import { RecentAcceptancesWidget } from '../components/RecentAcceptancesWidget';
+import {
+  SummaryWidgetSkeleton,
+  RecentAcceptancesSkeleton,
+} from '../../../components/Skeleton';
 
 type Props = {
   navigation: any;
@@ -23,23 +27,37 @@ type Props = {
 };
 
 const navigateToWarehouseScreen = (navigation: any, screen: string) => {
-  if (typeof navigation.navigate !== 'function') {
-    return;
+  if (!navigation || typeof navigation.navigate !== 'function') return;
+
+  // 1. Check if target screen exists directly in current navigator or any parent navigator
+  let currentNav = navigation;
+  while (currentNav) {
+    const state = currentNav.getState?.();
+    const routeNames: string[] = state?.routeNames || [];
+    if (routeNames.includes(screen)) {
+      currentNav.navigate(screen);
+      return;
+    }
+    currentNav = currentNav.getParent?.();
   }
 
-  const state = navigation.getState?.();
-  const routeNames: string[] = state?.routeNames || [];
-
-  if (routeNames.includes(screen)) {
-    navigation.navigate(screen);
-  } else if (routeNames.includes('Warehouse')) {
-    navigation.navigate('Warehouse', { screen });
-  } else {
-    try {
-      navigation.navigate('Warehouse', { screen });
-    } catch {
-      navigation.navigate(screen);
+  // 2. Fallback: Check if 'Warehouse' tab exists in any parent navigator
+  currentNav = navigation;
+  while (currentNav) {
+    const state = currentNav.getState?.();
+    const routeNames: string[] = state?.routeNames || [];
+    if (routeNames.includes('Warehouse')) {
+      currentNav.navigate('Warehouse', { screen });
+      return;
     }
+    currentNav = currentNav.getParent?.();
+  }
+
+  // 3. Final fallback
+  try {
+    navigation.navigate(screen);
+  } catch (err) {
+    console.warn('navigateToWarehouseScreen failed for:', screen, err);
   }
 };
 
@@ -48,6 +66,7 @@ const WarehouseDashboard: React.FC<Props> = ({
   showCustomHeader = false,
 }) => {
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [whSummary, setWhSummary] = useState<WarehouseSummaryData | null>(null);
   const [recentAcceptances, setRecentAcceptances] = useState<RecentAcceptanceItem[]>([]);
   const [trackingSummary, setTrackingSummary] = useState<TrackingSummaryData | null>(null);
@@ -64,6 +83,8 @@ const WarehouseDashboard: React.FC<Props> = ({
       setTrackingSummary(trackingRes);
     } catch (e) {
       console.log('Error loading warehouse dashboard data:', e);
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -97,7 +118,7 @@ const WarehouseDashboard: React.FC<Props> = ({
       </View>
 
       {/* ── Real API Warehouse Summary Widget ────────────────────────────── */}
-      {whSummary && <WarehouseSummaryWidget data={whSummary} />}
+      {loading ? <SummaryWidgetSkeleton /> : whSummary && <WarehouseSummaryWidget data={whSummary} />}
 
 
       {/* {!showCustomHeader && (
@@ -112,7 +133,7 @@ const WarehouseDashboard: React.FC<Props> = ({
       )} */}
 
       {/* ── Recent Acceptances (Real API Data) ──────────────────────────── */}
-      <RecentAcceptancesWidget data={recentAcceptances} />
+      {loading ? <RecentAcceptancesSkeleton /> : <RecentAcceptancesWidget data={recentAcceptances} />}
     </View>
   );
 

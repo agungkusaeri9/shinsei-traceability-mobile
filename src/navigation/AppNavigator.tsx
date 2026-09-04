@@ -14,11 +14,10 @@ import {
 import { useAuth } from '../hooks/useAuth';
 import AreaScreen from '../features/area/screens/AreaScreen';
 import AreaWarehouseDashboard from '../features/area/screens/AreaWarehouseDashboard';
+import AreaSmtDashboard from '../features/area/screens/AreaSmtDashboard';
 import WarehouseScreen from '../features/warehouse/screens/WarehouseScreen';
-import RegisterScreen from '../features/warehouse/screens/RegisterScreen';
 import StockInScreen from '../features/warehouse/screens/StockInScreen';
 import StockOutScreen from '../features/warehouse/screens/StockOutScreen';
-import SmtHomeScreen from '../features/smt/screens/SmtHomeScreen';
 import PartRegisterScreen from '../features/smt/screens/PartRegisterScreen';
 import PartChangingScreen from '../features/smt/screens/PartChangingScreen';
 import FinishScreen from '../features/smt/screens/FinishScreen';
@@ -29,6 +28,8 @@ import {
   WarehouseTabIcon,
   SmtTabIcon,
 } from '../utils/tabIcons';
+import SmtDashboard from '../features/dashboard/screens/SmtDashboard';
+import SmtHomeScreen from '../features/smt/screens/SmtHomeScreen';
 
 const Tab = createBottomTabNavigator<AppTabParamList>();
 const WarehouseStack = createNativeStackNavigator<WarehouseStackParamList>();
@@ -41,8 +42,6 @@ function WarehouseNavigator() {
   return (
     <WarehouseStack.Navigator screenOptions={{ headerShown: false }}>
       <WarehouseStack.Screen name="WarehouseHome" component={WarehouseScreen} />
-      {/* Register - disabled, moved to SMT Part Register */}
-      {/* <WarehouseStack.Screen name="Register" component={RegisterScreen} /> */}
       <WarehouseStack.Screen name="StockIn" component={StockInScreen} />
       <WarehouseStack.Screen name="StockOut" component={StockOutScreen} />
     </WarehouseStack.Navigator>
@@ -61,6 +60,11 @@ function AreaNavigator() {
       {/* <AreaStack.Screen name="Register" component={RegisterScreen} /> */}
       <AreaStack.Screen name="StockIn" component={StockInScreen} />
       <AreaStack.Screen name="StockOut" component={StockOutScreen} />
+      <AreaStack.Screen name="SmtDashboard" component={AreaSmtDashboard} />
+      <AreaStack.Screen name="SmtHome" component={AreaSmtDashboard} />
+      <AreaStack.Screen name="PartRegister" component={PartRegisterScreen} />
+      <AreaStack.Screen name="PartChanging" component={PartChangingScreen} />
+      <AreaStack.Screen name="Finish" component={FinishScreen} />
     </AreaStack.Navigator>
   );
 }
@@ -79,8 +83,8 @@ function SmtNavigator() {
 const AppNavigator: React.FC = () => {
   const { user } = useAuth();
   const role = user?.role ?? '';
-  const isWarehouse = role.toLowerCase() === 'wh';
   const isSuperadmin = role.toLowerCase() === 'superadmin';
+  const isWarehouse = role.toLowerCase() === 'wh';
   const isSmt = role.toLowerCase() === 'smt';
 
   return (
