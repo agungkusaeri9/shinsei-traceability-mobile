@@ -61,6 +61,7 @@ interface PartChangeItem {
 const PartChangingScreen: React.FC<Props> = ({ navigation }) => {
   const barcodeRef = useRef<TextInput>(null);
   const [step, setStep] = useState<Step>('scan_lot');
+  const [lotNumber, setLotNumber] = useState('');
   const [scanInput, setScanInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -94,6 +95,7 @@ const PartChangingScreen: React.FC<Props> = ({ navigation }) => {
       focusScanner();
       return;
     }
+    setLotNumber(trimmed);
 
     setIsLoading(true);
     try {
@@ -327,16 +329,16 @@ const PartChangingScreen: React.FC<Props> = ({ navigation }) => {
     step === 'scan_lot'
       ? 'Scan Lot Number'
       : step === 'scan_line'
-      ? 'Scan Line'
-      : step === 'scan_machine'
-      ? 'Scan Machine'
-      : step === 'scan_product'
-      ? 'Scan Product Select'
-      : step === 'select_parts'
-      ? 'Daftar Part'
-      : step === 'scan_new_stk'
-      ? 'Scan STK Baru'
-      : 'Selesai';
+        ? 'Scan Line'
+        : step === 'scan_machine'
+          ? 'Scan Machine'
+          : step === 'scan_product'
+            ? 'Scan Product Select'
+            : step === 'select_parts'
+              ? 'Daftar Part'
+              : step === 'scan_new_stk'
+                ? 'Scan STK Baru'
+                : 'Selesai';
 
   const partBatches = matchedDetail?.partBatches ?? [];
   const replacedCount = partChangeItems.filter(i => i.replaced).length;
@@ -349,7 +351,11 @@ const PartChangingScreen: React.FC<Props> = ({ navigation }) => {
         icon={<ArrowLeftRight color={colors.orange} size={18} />}
         iconBgColor={`${colors.orange}25`}
         onBack={() =>
-          step === 'scan_lot' ? navigation.navigate('SmtHome') : handleReset()
+          step === 'scan_lot'
+            ? navigation.canGoBack()
+              ? navigation.goBack()
+              : navigation.navigate('SmtDashboard' as any)
+            : handleReset()
         }
         rightSlot={
           step !== 'scan_lot' ? (
@@ -445,8 +451,9 @@ const PartChangingScreen: React.FC<Props> = ({ navigation }) => {
             </View>
 
             <View style={styles.detailCard}>
+              <DetailRow label="Lot Number" value={lotNumber} />
               <DetailRow label="Customer" value={orderData.customer.name} />
-              <DetailRow label="PCB Model" value={orderData.pcbModel.name} />
+              <DetailRow label="PCB Model" value={orderData.pcbModel?.name || '-'} />
               <DetailRow label="Face" value={orderData.pcbModelFace} />
             </View>
 
@@ -609,11 +616,10 @@ const PartChangingScreen: React.FC<Props> = ({ navigation }) => {
                   style={[
                     styles.progressFill,
                     {
-                      width: `${
-                        partChangeItems.length > 0
-                          ? (replacedCount / partChangeItems.length) * 100
-                          : 0
-                      }%`,
+                      width: `${partChangeItems.length > 0
+                        ? (replacedCount / partChangeItems.length) * 100
+                        : 0
+                        }%`,
                     },
                   ]}
                 />
