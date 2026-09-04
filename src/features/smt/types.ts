@@ -86,3 +86,10 @@ export interface SmtResponse {
   productSelect: string;
   createdAt?: string;
 }
+
+export interface SmtFinishPayload {
+  lotNumber: string;
+  ip: string;
+  model: string;
+  customer: string;
+}

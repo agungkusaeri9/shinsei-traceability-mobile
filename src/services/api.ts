@@ -27,6 +27,7 @@ export const API_ENDPOINTS = {
   // SMT
   ORDER_LOT: '/orders/lot',
   SMTS: '/smts',
+  SMTS_FINISH: '/smts/finish',
 
   // STK
   STKS: '/stks',

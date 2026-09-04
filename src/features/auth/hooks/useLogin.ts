@@ -8,7 +8,7 @@ export const useLogin = () => {
   const { setAuth, isLoading, setLoading } = useAuth();
 
   const [form, setForm] = useState<LoginFormValues>({
-    username: 'testwh',
+    username: 'testsmt',
     password: 'password',
   });
 

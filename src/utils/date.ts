@@ -1,14 +1,16 @@
-import { format, parseISO, isValid } from 'date-fns';
-
 /**
  * Format date to readable string
  * @example formatDate('2024-01-15') => '15 January 2024'
  */
 export const formatDate = (dateString: string): string => {
   try {
-    const date = parseISO(dateString);
-    if (!isValid(date)) return '-';
-    return format(date, 'dd MMMM yyyy');
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return '-';
+    return date.toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+    });
   } catch {
     return '-';
   }
@@ -20,9 +22,19 @@ export const formatDate = (dateString: string): string => {
  */
 export const formatDateTime = (dateString: string): string => {
   try {
-    const date = parseISO(dateString);
-    if (!isValid(date)) return '-';
-    return format(date, 'dd MMM yyyy, HH:mm');
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return '-';
+    const datePart = date.toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+    const timePart = date.toLocaleTimeString('en-GB', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+    return `${datePart}, ${timePart}`;
   } catch {
     return '-';
   }
@@ -33,8 +45,8 @@ export const formatDateTime = (dateString: string): string => {
  */
 export const getRelativeTime = (dateString: string): string => {
   try {
-    const date = parseISO(dateString);
-    if (!isValid(date)) return '-';
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return '-';
 
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();

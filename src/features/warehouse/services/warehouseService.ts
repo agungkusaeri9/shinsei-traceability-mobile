@@ -115,10 +115,7 @@ export const fetchStkData = async (stkNumber: string): Promise<StkResponse> => {
 
 // ─── Orders ──────────────────────────────────────────────────────────────
 
-export const fetchOrders = async (): Promise<Order[]> => {
-  const response = await httpClient.get(API_ENDPOINTS.ORDERS);
-  return response.data.data ?? response.data;
-};
+export { fetchOrders } from '../../../services/orderService';
 
 // ─── Material Feedings (Stock Out) ──────────────────────────────────────
 
