@@ -9,6 +9,7 @@ import {
   Platform,
   Image,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import {
   ArrowDownToLine,
@@ -61,6 +62,7 @@ const StockInScreen: React.FC<Props> = ({ navigation }) => {
   const [isCheckingRack, setIsCheckingRack] = useState(false);
   const [photo, setPhoto] = useState<PhotoAsset | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const focusScanner = useCallback(() => {
     requestAnimationFrame(() => {
@@ -318,6 +320,12 @@ const StockInScreen: React.FC<Props> = ({ navigation }) => {
     setIsSubmitting(false);
   };
 
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    handleReset();
+    setTimeout(() => setRefreshing(false), 300);
+  }, []);
+
   // ─── Header subtitle ─────────────────────────────────────────────────────
   const headerSubtitle =
     step === 'scan-stk'
@@ -384,6 +392,14 @@ const StockInScreen: React.FC<Props> = ({ navigation }) => {
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.scrollContent}
             keyboardShouldPersistTaps="handled"
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={[colors.success]}
+                tintColor={colors.success}
+              />
+            }
           >
             <InfoBanner
               icon={<ScanBarcode color={colors.success} size={20} />}

@@ -40,7 +40,8 @@ const InputLabel: React.FC<InputLabelProps> = ({
                     {...props}
                     style={[
                         styles.input,
-                        leftIcon && styles.inputWithIcon,
+                        Boolean(leftIcon) && styles.inputWithIcon,
+                        props.style,
                     ]}
                     placeholderTextColor="#94A3B8"
                     onFocus={() => setFocused(true)}

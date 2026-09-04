@@ -9,6 +9,7 @@ import {
   Platform,
   FlatList,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import {
   ArrowUpFromLine,
@@ -60,6 +61,7 @@ const StockOutScreen: React.FC<Props> = ({ navigation }) => {
   );
   const [stkInput, setStkInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Refetch orders when screen is focused
   useFocusEffect(
@@ -73,7 +75,7 @@ const StockOutScreen: React.FC<Props> = ({ navigation }) => {
   const loadOrders = async () => {
     setLoadingOrders(true);
     try {
-      const data = await fetchOrders();
+      const data = await fetchOrders({ status: 'created' });
       setOrders(Array.isArray(data) ? data : []);
     } catch (error: any) {
       showError(error?.response?.data?.message || 'Gagal memuat data Order');
@@ -81,6 +83,12 @@ const StockOutScreen: React.FC<Props> = ({ navigation }) => {
       setLoadingOrders(false);
     }
   };
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadOrders();
+    setRefreshing(false);
+  }, []);
 
   // Build dropdown options from orders
   const orderDropdownOptions = orders.map(o => ({
@@ -238,6 +246,14 @@ const StockOutScreen: React.FC<Props> = ({ navigation }) => {
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.scrollContent}
             keyboardShouldPersistTaps="handled"
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={[colors.orange]}
+                tintColor={colors.orange}
+              />
+            }
           >
             <InfoBanner
               icon={<Factory color={colors.orange} size={20} />}
