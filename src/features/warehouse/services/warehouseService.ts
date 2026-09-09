@@ -1,5 +1,6 @@
 import httpClient from '../../../services/httpClient';
 import { API_ENDPOINTS } from '../../../services/api';
+import { extractStkNumber } from '../../../utils/barcode';
 import {
   Supplier,
   Maker,
@@ -107,8 +108,9 @@ export const stockIn = async (
 // ─── STK Data ─────────────────────────────────────────────────────────────
 
 export const fetchStkData = async (stkNumber: string): Promise<StkResponse> => {
+  const cleanStk = extractStkNumber(stkNumber);
   const response = await httpClient.get<StkResponse>(
-    `${API_ENDPOINTS.STKS}/${stkNumber}`,
+    `${API_ENDPOINTS.STKS}/${cleanStk}`,
   );
   return response.data;
 };

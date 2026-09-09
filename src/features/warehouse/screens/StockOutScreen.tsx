@@ -36,11 +36,12 @@ import WarehouseHeader from '../components/WarehouseHeader';
 import InfoBanner from '../components/InfoBanner';
 import SearchableDropdown from '../components/SearchableDropdown';
 import StkScanProgress from '../components/StkScanProgress';
-import StkScanItem from '../components/StkScanItem';
+import StkScanItem from '../../../components/StkScanItem';
 import {
   fetchOrders,
   submitMaterialFeeding,
 } from '../services/warehouseService';
+import { extractStkNumber } from '../../../utils/barcode';
 
 type Props = {
   navigation: NativeStackNavigationProp<WarehouseStackParamList, 'StockOut'>;
@@ -140,7 +141,7 @@ const StockOutScreen: React.FC<Props> = ({ navigation }) => {
       .filter(Boolean) ?? [];
 
   const handleScanStk = (value: string) => {
-    const trimmed = value.trim();
+    const trimmed = extractStkNumber(value);
     if (!trimmed || !selectedOrder) {
       focusScanner();
       return;
@@ -148,17 +149,20 @@ const StockOutScreen: React.FC<Props> = ({ navigation }) => {
 
     // Find matching order item by stkNumber
     const matchedItem = selectedOrder.orderItems.find(
-      item => item.partBatch?.stkNumber === trimmed,
+      item =>
+        item.partBatch?.stkNumber?.trim().toLowerCase() ===
+        trimmed.toLowerCase(),
     );
 
     if (matchedItem) {
+      const displayStk = matchedItem.partBatch?.stkNumber || trimmed;
       if (scannedPartBatchIds.has(matchedItem.partBatch.id)) {
-        showInfo(`${trimmed} sudah di-scan sebelumnya`);
+        showInfo(`${displayStk} sudah di-scan sebelumnya`);
       } else {
         const newScanned = new Set(scannedPartBatchIds);
         newScanned.add(matchedItem.partBatch.id);
         setScannedPartBatchIds(newScanned);
-        showSuccess(`${trimmed} berhasil di-scan`);
+        showSuccess(`${displayStk} berhasil di-scan`);
       }
     } else {
       showError(`${trimmed} tidak terdaftar dalam Order ini`);
@@ -172,8 +176,7 @@ const StockOutScreen: React.FC<Props> = ({ navigation }) => {
     if (!selectedOrder) return;
     if (scannedPartBatchIds.size < stkNumbers.length) {
       showError(
-        `Masih ada ${
-          stkNumbers.length - scannedPartBatchIds.size
+        `Masih ada ${stkNumbers.length - scannedPartBatchIds.size
         } STK yang belum di-scan`,
       );
       return;
@@ -212,10 +215,10 @@ const StockOutScreen: React.FC<Props> = ({ navigation }) => {
     step === 'select_wo'
       ? 'Pilih Order'
       : step === 'confirm_wo'
-      ? 'Konfirmasi Data'
-      : step === 'scanning'
-      ? 'Scan STK Number'
-      : 'Selesai';
+        ? 'Konfirmasi Data'
+        : step === 'scanning'
+          ? 'Scan STK Number'
+          : 'Selesai';
 
   return (
     <View style={styles.container}>
@@ -378,22 +381,28 @@ const StockOutScreen: React.FC<Props> = ({ navigation }) => {
             />
 
             <FlatList
-              data={stkNumbers}
-              keyExtractor={item => item}
+              data={selectedOrder.orderItems}
+              keyExtractor={item => String(item.id)}
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.stkListContent}
               renderItem={({ item }) => {
-                const matchedItem = selectedOrder.orderItems.find(
-                  oi => oi.partBatch?.stkNumber === item,
-                );
-                const isScanned = matchedItem
-                  ? scannedPartBatchIds.has(matchedItem.partBatch.id)
+                const partBatch = item.partBatch;
+                const isScanned = partBatch
+                  ? scannedPartBatchIds.has(partBatch.id)
                   : false;
+                const loc =
+                  partBatch?.part?.locations?.[0] || partBatch?.part?.location;
+                const locationStr = loc
+                  ? [loc.rack, loc.shelf, loc.bin].filter(Boolean).join('-')
+                  : undefined;
+
                 return (
                   <StkScanItem
-                    stkNumber={item}
+                    stkNumber={partBatch?.stkNumber ?? '-'}
                     isScanned={isScanned}
-                    onPress={() => handleScanStk(item)}
+                    partNo={partBatch?.part?.partNumber}
+                    pdd={partBatch?.part?.inventoryCode}
+                    location={locationStr}
                   />
                 );
               }}
@@ -401,7 +410,7 @@ const StockOutScreen: React.FC<Props> = ({ navigation }) => {
                 <View style={styles.scanHint}>
                   <ScanBarcode color={colors.primary} size={18} />
                   <Text style={styles.scanHintText}>
-                    Scan barcode STK atau tap item di bawah untuk simulasi scan
+                    Scan barcode STK untuk memproses order
                   </Text>
                 </View>
               }
@@ -503,8 +512,7 @@ const styles = StyleSheet.create({
     ...shadows.sm,
   },
   detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: 'column',
     paddingVertical: 6,
   },
   detailLabel: { fontSize: 13, color: colors.textSecondary },

@@ -32,7 +32,9 @@ import {
 } from '../../../services/toastService';
 import type { SmtOrderData, SmtOrderDetail, SmtPartBatch } from '../types';
 import { fetchOrderByLotNumber, submitSmt } from '../services/smtService';
+import { extractStkNumber } from '../../../utils/barcode';
 import SmtHeader from '../components/SmtHeader';
+import StkScanItem from '../../../components/StkScanItem';
 
 type Props = {
   navigation: NativeStackNavigationProp<SmtStackParamList, 'PartRegister'>;
@@ -129,9 +131,16 @@ const PartRegisterScreen: React.FC<Props> = ({ navigation }) => {
         String(d.line.id) === trimmed,
     );
 
+    // const matched = orderData.details.find(
+    //   d =>
+    //     d.line === null ||
+    //     d.line?.name?.toLowerCase() === trimmed.toLowerCase() ||
+    //     String(d.line?.id) === trimmed,
+    // );
+
     if (matched) {
       setMatchedDetail(matched);
-      showSuccess(`Line ${matched.line.name} cocok`);
+      showSuccess(`Line ${matched.line?.name || 'No line'} cocok`);
       setScanInput('');
       setStep('scan_machine');
     } else {
@@ -150,12 +159,12 @@ const PartRegisterScreen: React.FC<Props> = ({ navigation }) => {
     }
 
     // Verify machine matches the matched detail
-    const machineMatch =
+    const machineMatch = matchedDetail.machine == null ||
       matchedDetail.machine.name.toLowerCase() === trimmed.toLowerCase() ||
       String(matchedDetail.machine.id) === trimmed;
 
     if (machineMatch) {
-      showSuccess(`Machine ${matchedDetail.machine.name} cocok`);
+      showSuccess(`Machine ${matchedDetail.machine?.name || 'No machine'} cocok`);
       setScanInput('');
       setStep('scan_product');
     } else {
@@ -184,7 +193,7 @@ const PartRegisterScreen: React.FC<Props> = ({ navigation }) => {
 
   // ─── Step 5: Scan Part Batches (loop) ───────────────────────────────────
   const handleScanPartBatch = async (value: string) => {
-    const trimmed = value.trim();
+    const trimmed = extractStkNumber(value);
     if (!trimmed || !matchedDetail || !orderData) {
       focusScanner();
       return;
@@ -192,7 +201,7 @@ const PartRegisterScreen: React.FC<Props> = ({ navigation }) => {
 
     // Find matching partBatch by stkNumber
     const matchedBatch = matchedDetail.partBatches.find(
-      pb => pb.stkNumber.toLowerCase() === trimmed.toLowerCase(),
+      pb => pb.stkNumber?.trim().toLowerCase() === trimmed.toLowerCase(),
     );
 
     if (!matchedBatch) {
@@ -202,8 +211,10 @@ const PartRegisterScreen: React.FC<Props> = ({ navigation }) => {
       return;
     }
 
+    const displayStk = matchedBatch.stkNumber || trimmed;
+
     if (scannedPartBatchIds.has(matchedBatch.id)) {
-      showInfo(`${trimmed} sudah di-scan sebelumnya`);
+      showInfo(`${displayStk} sudah di-scan sebelumnya`);
       setScanInput('');
       focusScanner();
       return;
@@ -223,7 +234,7 @@ const PartRegisterScreen: React.FC<Props> = ({ navigation }) => {
       setScannedPartBatchIds(newScanned);
       setLastSubmittedOrderId(matchedDetail.orderId);
 
-      showSuccess(`${trimmed} berhasil di-submit`);
+      showSuccess(`${displayStk} berhasil di-submit`);
 
       // Check if all part batches are scanned
       if (newScanned.size >= matchedDetail.partBatches.length) {
@@ -233,7 +244,7 @@ const PartRegisterScreen: React.FC<Props> = ({ navigation }) => {
       }
     } catch (error: any) {
       showError(
-        error?.response?.data?.message || `Gagal submit STK ${trimmed}`,
+        error?.response?.data?.message || `Gagal submit STK ${displayStk}`,
       );
     } finally {
       setIsSubmitting(false);
@@ -462,9 +473,9 @@ const PartRegisterScreen: React.FC<Props> = ({ navigation }) => {
 
             <View style={styles.detailCard}>
               <DetailRow label="Customer" value={orderData.customer.name} />
-              <DetailRow label="PCB Model" value={orderData.pcbModel.name} />
+              <DetailRow label="PCB Model" value={orderData.pcbModel?.name || '-'} />
               <DetailRow label="Face" value={orderData.pcbModelFace} />
-              <DetailRow label="Line" value={matchedDetail.line.name} />
+              <DetailRow label="Line" value={matchedDetail.line?.name || 'No line'} />
               <DetailRow label="PO Number" value={matchedDetail.poNumber} />
             </View>
 
@@ -508,10 +519,10 @@ const PartRegisterScreen: React.FC<Props> = ({ navigation }) => {
 
             <View style={styles.detailCard}>
               <DetailRow label="Customer" value={orderData.customer.name} />
-              <DetailRow label="PCB Model" value={orderData.pcbModel.name} />
+              <DetailRow label="PCB Model" value={orderData.pcbModel?.name || '-'} />
               <DetailRow label="Face" value={orderData.pcbModelFace} />
-              <DetailRow label="Line" value={matchedDetail.line.name} />
-              <DetailRow label="Machine" value={matchedDetail.machine.name} />
+              <DetailRow label="Line" value={matchedDetail.line?.name || 'No line'} />
+              <DetailRow label="Machine" value={matchedDetail.machine?.name || 'No machine'} />
               <DetailRow label="PO Number" value={matchedDetail.poNumber} />
             </View>
 
@@ -562,37 +573,20 @@ const PartRegisterScreen: React.FC<Props> = ({ navigation }) => {
 
               {partBatches.map(pb => {
                 const isScanned = scannedPartBatchIds.has(pb.id);
+                const loc =
+                  pb.part?.locations?.[0] || pb.part?.location;
+                const locationStr = loc
+                  ? [loc.rack, loc.shelf, loc.bin].filter(Boolean).join('-')
+                  : undefined;
                 return (
-                  <View
+                  <StkScanItem
                     key={pb.id}
-                    style={[styles.stkItem, isScanned && styles.stkItemScanned]}
-                  >
-                    <View style={styles.stkItemLeft}>
-                      {isScanned ? (
-                        <CheckCircle2 color={colors.success} size={20} />
-                      ) : (
-                        <Package color={colors.textMuted} size={20} />
-                      )}
-                      <View style={styles.stkItemInfo}>
-                        <Text
-                          style={[
-                            styles.stkNumber,
-                            isScanned && styles.stkNumberScanned,
-                          ]}
-                        >
-                          {pb.stkNumber}
-                        </Text>
-                        <Text style={styles.stkDetail}>
-                          Qty: {pb.quantity} | Lot: {pb.lotNumber}
-                        </Text>
-                      </View>
-                    </View>
-                    {isScanned && (
-                      <View style={styles.scannedBadge}>
-                        <Text style={styles.scannedBadgeText}>Done</Text>
-                      </View>
-                    )}
-                  </View>
+                    stkNumber={pb.stkNumber ?? '-'}
+                    isScanned={isScanned}
+                    partNo={pb.part?.partNumber}
+                    pdd={pb.part?.inventoryCode}
+                    location={locationStr}
+                  />
                 );
               })}
             </ScrollView>
@@ -636,9 +630,9 @@ const PartRegisterScreen: React.FC<Props> = ({ navigation }) => {
 
               <View style={styles.finishedSummary}>
                 <DetailRow label="Customer" value={orderData.customer.name} />
-                <DetailRow label="PCB Model" value={orderData.pcbModel.name} />
-                <DetailRow label="Line" value={matchedDetail.line.name} />
-                <DetailRow label="Machine" value={matchedDetail.machine.name} />
+                <DetailRow label="PCB Model" value={orderData.pcbModel?.name || '-'} />
+                <DetailRow label="Line" value={matchedDetail.line?.name || 'No line'} />
+                <DetailRow label="Machine" value={matchedDetail.machine?.name || 'No machine'} />
                 <DetailRow label="Product" value={productSelect} />
                 <DetailRow
                   label="Total Part"
@@ -750,8 +744,7 @@ const styles = StyleSheet.create({
     ...shadows.sm,
   },
   detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: 'column',
     paddingVertical: 6,
   },
   detailLabel: { fontSize: 13, color: colors.textSecondary },
@@ -806,7 +799,6 @@ const styles = StyleSheet.create({
     ...shadows.sm,
   },
   stkItemScanned: {
-    backgroundColor: `${colors.success}10`,
     borderColor: colors.success,
     borderWidth: 1,
   },

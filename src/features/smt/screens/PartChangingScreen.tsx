@@ -34,6 +34,7 @@ import {
 import type { SmtOrderData, SmtOrderDetail, SmtPartBatch } from '../types';
 import { fetchOrderByLotNumber, submitSmt } from '../services/smtService';
 import { fetchStkData } from '../../warehouse/services/warehouseService';
+import { extractStkNumber } from '../../../utils/barcode';
 import type { StkData } from '../../warehouse/types';
 import SmtHeader from '../components/SmtHeader';
 
@@ -204,7 +205,7 @@ const PartChangingScreen: React.FC<Props> = ({ navigation }) => {
 
   // ─── Step 6: Scan New STK ──────────────────────────────────────────────
   const handleScanNewStk = async (value: string) => {
-    const trimmed = value.trim();
+    const trimmed = extractStkNumber(value);
     if (!trimmed || !matchedDetail) {
       focusScanner();
       return;
@@ -248,6 +249,7 @@ const PartChangingScreen: React.FC<Props> = ({ navigation }) => {
       }
 
       const matchedItem = partChangeItems[matchIndex];
+      const newStk = stkData.stkNumber || trimmed;
 
       // Submit to API
       setIsSubmitting(true);
@@ -263,12 +265,12 @@ const PartChangingScreen: React.FC<Props> = ({ navigation }) => {
         updatedItems[matchIndex] = {
           ...updatedItems[matchIndex],
           replaced: true,
-          replacedWithStk: trimmed,
+          replacedWithStk: newStk,
         };
         setPartChangeItems(updatedItems);
 
         showSuccess(
-          `${matchedItem.partBatch.stkNumber} berhasil di-ganti dengan ${trimmed}. Tekan Finish jika sudah selesai.`,
+          `${matchedItem.partBatch.stkNumber} berhasil di-ganti dengan ${newStk}. Tekan Finish jika sudah selesai.`,
         );
       } catch (error: any) {
         showError(error?.response?.data?.message || `Gagal submit part change`);

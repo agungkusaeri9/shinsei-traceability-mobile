@@ -114,6 +114,7 @@ export interface PartBatch {
   moistureProof: boolean;
   expiredDate: string;
   receivedDate: string;
+  part?: StkPart;
 }
 
 export interface OrderItem {
@@ -137,6 +138,13 @@ export interface Order {
   orderType: string;
   orderItems: OrderItem[];
 }
+
+export interface OrderResponse {
+  status: boolean;
+  message: string;
+  data: Order[];
+}
+
 
 // ─── Material Feeding (Stock Out) ────────────────────────────────────────
 

@@ -34,6 +34,7 @@ import {
   checkStkLocation,
   stockIn,
 } from '../services/warehouseService';
+import { extractStkNumber } from '../../../utils/barcode';
 
 type Props = {
   navigation: NativeStackNavigationProp<WarehouseStackParamList, 'StockIn'>;
@@ -121,7 +122,7 @@ const StockInScreen: React.FC<Props> = ({ navigation }) => {
 
   // ─── Step 1: Scan STK & Fetch Data ──────────────────────────────────────
   const handleScanStk = async (value: string) => {
-    const trimmed = value.trim();
+    const trimmed = extractStkNumber(value);
     if (!trimmed) {
       focusScanner();
       return;
@@ -132,7 +133,7 @@ const StockInScreen: React.FC<Props> = ({ navigation }) => {
       const response = await fetchStkData(trimmed);
       if (response.status && response.data) {
         setStkData(response.data);
-        showSuccess(`STK ${trimmed} ditemukan. Silakan scan Barcode Rack.`);
+        showSuccess(`${trimmed} ditemukan. Silakan scan Barcode Rack.`);
         setStkInput('');
         setStep('scan-rack');
       } else {
