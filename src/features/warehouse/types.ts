@@ -78,6 +78,22 @@ export interface StockInResponse {
 
 // ─── Orders (for Stock Out) ──────────────────────────────────────────────
 
+export interface OrderSummary {
+  id: number;
+  poNumber: string;
+  productName: string;
+  customerName: string;
+  pcbModelFace: string;
+  orderNumber: string;
+  lotNumber: string;
+  lotQuantity: number;
+  orderStatus: string;
+  stkCounter: number;
+  updatedBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface OrderCustomer {
   id: number;
   code: string;
@@ -121,21 +137,26 @@ export interface OrderItem {
   id: number;
   orderId: number;
   partBatch: PartBatch;
+  line: OrderLine;
+  machine: OrderMachine;
+  isActive?: boolean;
+  reason?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Order {
   id: number;
   poNumber: string;
   customer: OrderCustomer;
-  pcbModel: OrderPcbModel;
   pcbModelFace: string;
   orderNumber: string;
   lotNumber: string;
   lotQuantity: number;
+  product: Product;
   date: string;
-  line: OrderLine;
-  machine: OrderMachine;
   orderType: string;
+  status: string;
   orderItems: OrderItem[];
 }
 
@@ -145,7 +166,16 @@ export interface OrderResponse {
   data: Order[];
 }
 
-
+export interface Product {
+  id: number;
+  name: string;
+  code: string;
+  description?: string;
+  customerId?: number;
+  customerName?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
 // ─── Material Feeding (Stock Out) ────────────────────────────────────────
 
 // ─── STK Data (for Stock In) ─────────────────────────────────────
@@ -182,7 +212,6 @@ export interface StkPart {
   inventoryCode: string;
   partNumber: string;
   partName: string;
-  location?: StkLocation;
   locations?: StkLocation[];
   supplier?: StkSupplier;
   customer?: StkCustomer;

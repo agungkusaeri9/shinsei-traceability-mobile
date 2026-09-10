@@ -1,5 +1,7 @@
 // ─── SMT Types ──────────────────────────────────────────────────────────────
 
+import { Product } from "../warehouse/types";
+
 export interface SmtCustomer {
   id: number;
   code: string;
@@ -62,6 +64,7 @@ export interface SmtOrderDetail {
 
 export interface SmtOrderData {
   customer: SmtCustomer;
+  product: Product;
   pcbModel: SmtPcbModel;
   pcbModelFace: string;
   details: SmtOrderDetail[];
@@ -89,7 +92,6 @@ export interface SmtResponse {
 
 export interface SmtFinishPayload {
   lotNumber: string;
-  ip: string;
   model: string;
   customer: string;
 }

@@ -93,6 +93,8 @@ export const stockIn = async (
     } as any);
   }
 
+  console.log(formData);
+
   const response = await httpClient.post<StockInResponse>(
     API_ENDPOINTS.WH_STOCK_INS,
     formData,
@@ -117,7 +119,7 @@ export const fetchStkData = async (stkNumber: string): Promise<StkResponse> => {
 
 // ─── Orders ──────────────────────────────────────────────────────────────
 
-export { fetchOrders } from '../../../services/orderService';
+export { fetchOrders, fetchOrderById } from '../../../services/orderService';
 
 // ─── Material Feedings (Stock Out) ──────────────────────────────────────
 

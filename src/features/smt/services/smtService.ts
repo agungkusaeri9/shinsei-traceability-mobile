@@ -7,7 +7,7 @@ import type {
   SmtPayload,
   SmtResponse,
 } from '../types';
-import type { Order } from '../../warehouse/types';
+import type { Order, OrderSummary } from '../../warehouse/types';
 
 // ─── Fetch Order by Lot Number ──────────────────────────────────────────────
 
@@ -22,9 +22,13 @@ export const fetchOrderByLotNumber = async (
 
 // ─── Fetch Orders with status=submitted ────────────────────────────────────
 
-export const fetchSubmittedOrders = async (): Promise<Order[]> => {
-  return fetchOrders({ status: 'submitted' });
+export const fetchSubmittedOrders = async (): Promise<OrderSummary[]> => {
+  return fetchOrders({ status: 'SMT_REGISTER' });
 };
+
+// ─── Fetch Order by ID ────────────────────────────────────────────────────
+
+export { fetchOrderById } from '../../../services/orderService';
 
 // ─── Submit SMT ─────────────────────────────────────────────────────────────
 

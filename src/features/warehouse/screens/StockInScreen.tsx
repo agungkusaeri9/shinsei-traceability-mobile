@@ -86,9 +86,6 @@ const StockInScreen: React.FC<Props> = ({ navigation }) => {
     if (stk.part.locations && stk.part.locations.length > 0) {
       return stk.part.locations;
     }
-    if (stk.part.location) {
-      return [stk.part.location];
-    }
     return [];
   };
 
