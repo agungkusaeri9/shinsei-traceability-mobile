@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  FlatList,
 } from 'react-native';
 import {
   ClipboardList,
@@ -35,6 +36,7 @@ import { fetchOrderByLotNumber, submitSmt } from '../services/smtService';
 import { extractStkNumber } from '../../../utils/barcode';
 import SmtHeader from '../components/SmtHeader';
 import StkScanItem from '../../../components/StkScanItem';
+import StkScanProgress from '../../warehouse/components/StkScanProgress';
 
 type Props = {
   navigation: NativeStackNavigationProp<SmtStackParamList, 'PartRegister'>;
@@ -50,6 +52,7 @@ type Step =
 
 const PartRegisterScreen: React.FC<Props> = ({ navigation }) => {
   const barcodeRef = useRef<TextInput>(null);
+  const flatListRef = useRef<FlatList>(null);
   const [step, setStep] = useState<Step>('scan_lot');
   const [scanInput, setScanInput] = useState('');
   const [lotNumber, setLotNumber] = useState('');
@@ -236,6 +239,9 @@ const PartRegisterScreen: React.FC<Props> = ({ navigation }) => {
 
       showSuccess(`${displayStk} berhasil di-submit`);
 
+      // Auto-scroll to top so next unscanned item is visible
+      flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+
       // Check if all part batches are scanned
       if (newScanned.size >= matchedDetail.partBatches.length) {
         showSuccess(
@@ -309,6 +315,23 @@ const PartRegisterScreen: React.FC<Props> = ({ navigation }) => {
               : 'Selesai';
 
   const partBatches = matchedDetail?.partBatches ?? [];
+
+  // Sort: unscanned first (original order), scanned last (by scan order)
+  const sortedPartBatches = useMemo(() => {
+    if (!partBatches.length) return [];
+    const scanned: SmtPartBatch[] = [];
+    const unscanned: SmtPartBatch[] = [];
+
+    for (const pb of partBatches) {
+      if (scannedPartBatchIds.has(pb.id)) {
+        scanned.push(pb);
+      } else {
+        unscanned.push(pb);
+      }
+    }
+
+    return [...unscanned, ...scanned];
+  }, [partBatches, scannedPartBatchIds]);
 
   return (
     <View style={styles.container}>
@@ -429,7 +452,7 @@ const PartRegisterScreen: React.FC<Props> = ({ navigation }) => {
             <View style={styles.detailCard}>
               <DetailRow label="Lot Number" value={lotNumber} />
               <DetailRow label="Customer" value={orderData.customer.name} />
-              <DetailRow label="PCB Model" value={orderData.pcbModel?.name || '-'} />
+              <DetailRow label="PCB Model" value={orderData.product?.name || '-'} />
               <DetailRow label="Face" value={orderData.pcbModelFace} />
             </View>
 
@@ -473,7 +496,7 @@ const PartRegisterScreen: React.FC<Props> = ({ navigation }) => {
 
             <View style={styles.detailCard}>
               <DetailRow label="Customer" value={orderData.customer.name} />
-              <DetailRow label="PCB Model" value={orderData.pcbModel?.name || '-'} />
+              <DetailRow label="PCB Model" value={orderData.product?.name || '-'} />
               <DetailRow label="Face" value={orderData.pcbModelFace} />
               <DetailRow label="Line" value={matchedDetail.line?.name || 'No line'} />
               <DetailRow label="PO Number" value={matchedDetail.poNumber} />
@@ -519,7 +542,7 @@ const PartRegisterScreen: React.FC<Props> = ({ navigation }) => {
 
             <View style={styles.detailCard}>
               <DetailRow label="Customer" value={orderData.customer.name} />
-              <DetailRow label="PCB Model" value={orderData.pcbModel?.name || '-'} />
+              <DetailRow label="PCB Model" value={orderData.product?.name || '-'} />
               <DetailRow label="Face" value={orderData.pcbModelFace} />
               <DetailRow label="Line" value={matchedDetail.line?.name || 'No line'} />
               <DetailRow label="Machine" value={matchedDetail.machine?.name || 'No machine'} />
@@ -538,40 +561,19 @@ const PartRegisterScreen: React.FC<Props> = ({ navigation }) => {
         {/* ── Step 5: Scanning Part Batches ─────────────────── */}
         {step === 'scanning_parts' && orderData && matchedDetail && (
           <View style={{ flex: 1 }}>
-            {/* Progress */}
-            <View style={styles.progressBar}>
-              <Text style={styles.progressText}>
-                Progress: {scannedPartBatchIds.size} / {partBatches.length}
-              </Text>
-              <View style={styles.progressTrack}>
-                <View
-                  style={[
-                    styles.progressFill,
-                    {
-                      width: `${partBatches.length > 0
-                        ? (scannedPartBatchIds.size / partBatches.length) *
-                        100
-                        : 0
-                        }%`,
-                    },
-                  ]}
-                />
-              </View>
-            </View>
+            <StkScanProgress
+              scanned={scannedPartBatchIds.size}
+              total={partBatches.length}
+            />
 
-            <ScrollView
+            <FlatList
+              ref={flatListRef}
+              data={sortedPartBatches}
+              keyExtractor={item => String(item.id)}
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.stkListContent}
               keyboardShouldPersistTaps="handled"
-            >
-              <View style={styles.scanHint}>
-                <ScanBarcode color={colors.primary} size={18} />
-                <Text style={styles.scanHintText}>
-                  Scan STK Number satu per satu. Product: {productSelect}
-                </Text>
-              </View>
-
-              {partBatches.map(pb => {
+              renderItem={({ item: pb }) => {
                 const isScanned = scannedPartBatchIds.has(pb.id);
                 const loc =
                   pb.part?.locations?.[0] || pb.part?.location;
@@ -580,7 +582,6 @@ const PartRegisterScreen: React.FC<Props> = ({ navigation }) => {
                   : undefined;
                 return (
                   <StkScanItem
-                    key={pb.id}
                     stkNumber={pb.stkNumber ?? '-'}
                     isScanned={isScanned}
                     partNo={pb.part?.partNumber}
@@ -588,8 +589,16 @@ const PartRegisterScreen: React.FC<Props> = ({ navigation }) => {
                     location={locationStr}
                   />
                 );
-              })}
-            </ScrollView>
+              }}
+              ListHeaderComponent={
+                <View style={styles.scanHint}>
+                  <ScanBarcode color={colors.primary} size={18} />
+                  <Text style={styles.scanHintText}>
+                    Scan STK Number satu per satu. Product: {productSelect}
+                  </Text>
+                </View>
+              }
+            />
 
             {/* Bottom Bar */}
             <View style={styles.bottomBar}>
@@ -630,7 +639,7 @@ const PartRegisterScreen: React.FC<Props> = ({ navigation }) => {
 
               <View style={styles.finishedSummary}>
                 <DetailRow label="Customer" value={orderData.customer.name} />
-                <DetailRow label="PCB Model" value={orderData.pcbModel?.name || '-'} />
+                <DetailRow label="PCB Model" value={orderData.product?.name || '-'} />
                 <DetailRow label="Line" value={matchedDetail.line?.name || 'No line'} />
                 <DetailRow label="Machine" value={matchedDetail.machine?.name || 'No machine'} />
                 <DetailRow label="Product" value={productSelect} />

@@ -17,20 +17,21 @@ import SmtHeader from '../components/SmtHeader';
 import Button from '../../../components/Button';
 import SearchableDropdown from '../../warehouse/components/SearchableDropdown';
 import InfoBanner from '../../warehouse/components/InfoBanner';
-import { fetchSubmittedOrders, finishSmt } from '../services/smtService';
+import { fetchSubmittedOrders, fetchOrderById, finishSmt } from '../services/smtService';
 import { showSuccess, showError } from '../../../services/toastService';
-import type { Order } from '../../warehouse/types';
+import type { Order, OrderSummary } from '../../warehouse/types';
 
 type Props = {
   navigation: NativeStackNavigationProp<SmtStackParamList, 'Finish'>;
 };
 
 const FinishScreen: React.FC<Props> = ({ navigation }) => {
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [loadingOrderDetail, setLoadingOrderDetail] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
@@ -60,15 +61,23 @@ const FinishScreen: React.FC<Props> = ({ navigation }) => {
 
   const orderDropdownOptions = orders.map(o => ({
     id: String(o.id),
-    label: `${o.orderNumber} - ${o.customer?.name ?? 'N/A'} (Lot: ${o.lotNumber})`,
+    label: `${o.orderNumber} - ${o.customerName ?? 'N/A'} (Lot: ${o.lotNumber})`,
   }));
 
-  const handleSelectOrder = (id: string) => {
+  const handleSelectOrder = async (id: string) => {
     const orderId = Number(id);
     setSelectedOrderId(orderId);
-    const order = orders.find(o => o.id === orderId);
-    if (order) {
+    setSelectedOrder(null);
+
+    setLoadingOrderDetail(true);
+    try {
+      const order = await fetchOrderById(orderId);
       setSelectedOrder(order);
+    } catch (error: any) {
+      showError(error?.response?.data?.message || 'Gagal memuat detail Order');
+      setSelectedOrderId(null);
+    } finally {
+      setLoadingOrderDetail(false);
     }
   };
 
@@ -85,8 +94,7 @@ const FinishScreen: React.FC<Props> = ({ navigation }) => {
 
     const payload = {
       lotNumber: selectedOrder.lotNumber || '',
-      ip: selectedOrder.line?.name || selectedOrder.machine?.name || '',
-      model: selectedOrder.pcbModel?.name || '',
+      model: selectedOrder.product?.name || '',
       customer: selectedOrder.customer?.name || '',
     };
 
@@ -156,7 +164,7 @@ const FinishScreen: React.FC<Props> = ({ navigation }) => {
           <>
             <InfoBanner
               icon={<Factory color={colors.primary} size={20} />}
-              text="Pilih Order dengan status submitted untuk melakukan konfirmasi & finish SMT"
+              text="Pilih Order SMT Completed untuk melakukan konfirmasi & finish SMT"
               bgColor={`${colors.primary}12`}
             />
 
@@ -171,24 +179,51 @@ const FinishScreen: React.FC<Props> = ({ navigation }) => {
                 selectedValue={selectedOrderId ? String(selectedOrderId) : ''}
                 onSelect={handleSelectOrder}
                 onClear={handleClearOrder}
-                label="Order (Submitted)"
+                label="Order"
                 placeholder="Cari atau pilih Order..."
               />
             )}
 
-            {selectedOrder && (
+            {loadingOrderDetail && (
+              <View style={styles.loadingField}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={styles.loadingText}>Memuat detail Order...</Text>
+              </View>
+            )}
+
+            {selectedOrder && !loadingOrderDetail && (
               <View style={styles.confirmationCard}>
                 <Text style={styles.cardTitle}>Konfirmasi Data Order</Text>
-                
+
                 <DetailRow label="Order Number" value={selectedOrder.orderNumber} />
                 <DetailRow label="PO Number" value={selectedOrder.poNumber} />
                 <DetailRow label="Lot Number" value={selectedOrder.lotNumber} />
                 <DetailRow label="Customer" value={selectedOrder.customer?.name ?? '-'} />
-                <DetailRow label="Model" value={selectedOrder.pcbModel?.name ?? '-'} />
+                <DetailRow label="Model" value={selectedOrder.product?.name ?? '-'} />
                 <DetailRow label="Face" value={selectedOrder.pcbModelFace ?? '-'} />
                 <DetailRow
-                  label="IP / Line"
-                  value={selectedOrder.line?.name ?? selectedOrder.machine?.name ?? '-'}
+                  label="Machine"
+                  value={
+                    [
+                      ...new Set(
+                        selectedOrder.orderItems
+                          ?.map(item => item.machine?.name)
+                          .filter(Boolean)
+                      ),
+                    ].join(', ') || 'N/A'
+                  }
+                />
+                <DetailRow
+                  label="Line"
+                  value={
+                    [
+                      ...new Set(
+                        selectedOrder.orderItems
+                          ?.map(item => item.line?.name)
+                          .filter(Boolean)
+                      ),
+                    ].join(', ') || 'N/A'
+                  }
                 />
 
                 <Button

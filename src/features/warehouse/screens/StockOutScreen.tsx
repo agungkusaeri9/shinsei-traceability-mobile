@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -29,7 +29,7 @@ import {
   showError,
   showInfo,
 } from '../../../services/toastService';
-import type { Order } from '../types';
+import type { Order, OrderSummary } from '../types';
 
 // Components
 import WarehouseHeader from '../components/WarehouseHeader';
@@ -39,6 +39,7 @@ import StkScanProgress from '../components/StkScanProgress';
 import StkScanItem from '../../../components/StkScanItem';
 import {
   fetchOrders,
+  fetchOrderById,
   submitMaterialFeeding,
 } from '../services/warehouseService';
 import { extractStkNumber } from '../../../utils/barcode';
@@ -51,15 +52,15 @@ type Step = 'select_wo' | 'confirm_wo' | 'scanning' | 'finished';
 
 const StockOutScreen: React.FC<Props> = ({ navigation }) => {
   const barcodeRef = useRef<TextInput>(null);
+  const flatListRef = useRef<FlatList>(null);
 
   const [step, setStep] = useState<Step>('select_wo');
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const [scannedPartBatchIds, setScannedPartBatchIds] = useState<Set<number>>(
-    new Set(),
-  );
+  const [loadingOrderDetail, setLoadingOrderDetail] = useState(false);
+  const [scannedPartBatchIds, setScannedPartBatchIds] = useState<Set<number>>(new Set());
   const [stkInput, setStkInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -94,7 +95,7 @@ const StockOutScreen: React.FC<Props> = ({ navigation }) => {
   // Build dropdown options from orders
   const orderDropdownOptions = orders.map(o => ({
     id: String(o.id),
-    label: `${o.orderNumber} - ${o.customer?.name ?? 'N/A'}`,
+    label: `${o.orderNumber} - ${o.customerName ?? 'N/A'}`,
   }));
 
   const focusScanner = useCallback(() => {
@@ -115,24 +116,49 @@ const StockOutScreen: React.FC<Props> = ({ navigation }) => {
   const handleSelectOrder = (id: string) => {
     const orderId = Number(id);
     setSelectedOrderId(orderId);
-    const order = orders.find(o => o.id === orderId);
-    if (order) {
-      setSelectedOrder(order);
-    }
+    setSelectedOrder(null); // Reset, will be fetched on "Cari"
   };
 
-  const handleFetchOrder = () => {
-    if (!selectedOrder) {
+  const handleFetchOrder = async () => {
+    if (!selectedOrderId) {
       showError('Pilih Order terlebih dahulu');
       return;
     }
-    if (!selectedOrder.orderItems || selectedOrder.orderItems.length === 0) {
-      showError('Order ini tidak memiliki item STK');
-      return;
+
+    setLoadingOrderDetail(true);
+    try {
+      const order = await fetchOrderById(selectedOrderId);
+      if (!order.orderItems || order.orderItems.length === 0) {
+        showError('Order ini tidak memiliki item STK');
+        return;
+      }
+      setSelectedOrder(order);
+      setScannedPartBatchIds(new Set());
+      setStep('confirm_wo');
+    } catch (error: any) {
+      showError(error?.response?.data?.message || 'Gagal memuat detail Order');
+    } finally {
+      setLoadingOrderDetail(false);
     }
-    setScannedPartBatchIds(new Set());
-    setStep('confirm_wo');
   };
+
+  // Sort: unscanned first (original order), scanned last (by scan order)
+  const sortedOrderItems = useMemo(() => {
+    if (!selectedOrder?.orderItems) return [];
+
+    const scanned: typeof selectedOrder.orderItems = [];
+    const unscanned: typeof selectedOrder.orderItems = [];
+
+    for (const item of selectedOrder.orderItems) {
+      if (item.partBatch && scannedPartBatchIds.has(item.partBatch.id)) {
+        scanned.push(item);
+      } else {
+        unscanned.push(item);
+      }
+    }
+
+    return [...unscanned, ...scanned];
+  }, [selectedOrder?.orderItems, scannedPartBatchIds]);
 
   // Get STK numbers from order items
   const stkNumbers =
@@ -140,7 +166,7 @@ const StockOutScreen: React.FC<Props> = ({ navigation }) => {
       .map(item => item.partBatch?.stkNumber)
       .filter(Boolean) ?? [];
 
-  const handleScanStk = (value: string) => {
+  const handleScanStk = async (value: string) => {
     const trimmed = extractStkNumber(value);
     if (!trimmed || !selectedOrder) {
       focusScanner();
@@ -158,11 +184,38 @@ const StockOutScreen: React.FC<Props> = ({ navigation }) => {
       const displayStk = matchedItem.partBatch?.stkNumber || trimmed;
       if (scannedPartBatchIds.has(matchedItem.partBatch.id)) {
         showInfo(`${displayStk} sudah di-scan sebelumnya`);
-      } else {
-        const newScanned = new Set(scannedPartBatchIds);
-        newScanned.add(matchedItem.partBatch.id);
-        setScannedPartBatchIds(newScanned);
+        setStkInput('');
+        focusScanner();
+        return;
+      }
+
+      setIsSubmitting(true);
+      try {
+        await submitMaterialFeeding({
+          orderId: selectedOrder.id,
+          processedDate: new Date().toISOString(),
+          materialFeedingItems: [{ partBatchId: matchedItem.partBatch.id }],
+        });
+        setScannedPartBatchIds(prev => new Set(prev).add(matchedItem.partBatch.id));
         showSuccess(`${displayStk} berhasil di-scan`);
+
+        // Auto-scroll to top so next unscanned item is visible
+        flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+
+        // All items scanned → auto-finish
+        if (scannedPartBatchIds.size + 1 >= stkNumbers.length) {
+          showSuccess(
+            `Stock Out ${selectedOrder.orderNumber} berhasil diproses`,
+            'Stock Out Berhasil',
+          );
+          setStep('finished');
+          setStkInput('');
+          return;
+        }
+      } catch (error: any) {
+        showError(error?.response?.data?.message || 'Gagal memproses STK');
+      } finally {
+        setIsSubmitting(false);
       }
     } else {
       showError(`${trimmed} tidak terdaftar dalam Order ini`);
@@ -172,7 +225,7 @@ const StockOutScreen: React.FC<Props> = ({ navigation }) => {
     focusScanner();
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!selectedOrder) return;
     if (scannedPartBatchIds.size < stkNumbers.length) {
       showError(
@@ -182,25 +235,11 @@ const StockOutScreen: React.FC<Props> = ({ navigation }) => {
       return;
     }
 
-    setIsSubmitting(true);
-    try {
-      await submitMaterialFeeding({
-        orderId: selectedOrder.id,
-        processedDate: new Date().toISOString(),
-        materialFeedingItems: Array.from(scannedPartBatchIds).map(id => ({
-          partBatchId: id,
-        })),
-      });
-      showSuccess(
-        `Stock Out ${selectedOrder.orderNumber} berhasil diproses`,
-        'Stock Out Berhasil',
-      );
-      setStep('finished');
-    } catch (error: any) {
-      showError(error?.response?.data?.message || 'Gagal stock out');
-    } finally {
-      setIsSubmitting(false);
-    }
+    showSuccess(
+      `Stock Out ${selectedOrder.orderNumber} berhasil diproses`,
+      'Stock Out Berhasil',
+    );
+    setStep('finished');
   };
 
   const handleReset = () => {
@@ -293,7 +332,8 @@ const StockOutScreen: React.FC<Props> = ({ navigation }) => {
               <Button
                 title="Cari"
                 onPress={handleFetchOrder}
-                disabled={!selectedOrder}
+                isLoading={loadingOrderDetail}
+                disabled={!selectedOrderId || loadingOrderDetail}
                 style={styles.halfBtn}
               />
             </View>
@@ -326,17 +366,32 @@ const StockOutScreen: React.FC<Props> = ({ navigation }) => {
               />
               <DetailRow
                 label="Machine"
-                value={selectedOrder.machine?.name ?? 'N/A'}
+                value={
+                  [
+                    ...new Set(
+                      selectedOrder.orderItems
+                        ?.map(item => item.machine?.name)
+                        .filter(Boolean)
+                    ),
+                  ].join(', ') || 'N/A'
+                }
               />
               <DetailRow
                 label="Line"
-                value={selectedOrder.line?.name ?? 'N/A'}
+                value={
+                  [
+                    ...new Set(
+                      selectedOrder.orderItems
+                        ?.map(item => item.line?.name)
+                        .filter(Boolean)
+                    ),
+                  ].join(', ') || 'N/A'
+                }
               />
               <DetailRow
-                label="PCB Model"
-                value={selectedOrder.pcbModel?.name ?? 'N/A'}
+                label="Model"
+                value={selectedOrder.product?.name ?? 'N/A'}
               />
-              <DetailRow label="Face" value={selectedOrder.pcbModelFace} />
               <DetailRow label="Lot Number" value={selectedOrder.lotNumber} />
               <DetailRow label="Total STK" value={String(stkNumbers.length)} />
             </View>
@@ -381,7 +436,8 @@ const StockOutScreen: React.FC<Props> = ({ navigation }) => {
             />
 
             <FlatList
-              data={selectedOrder.orderItems}
+              ref={flatListRef}
+              data={sortedOrderItems}
               keyExtractor={item => String(item.id)}
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.stkListContent}
@@ -391,7 +447,7 @@ const StockOutScreen: React.FC<Props> = ({ navigation }) => {
                   ? scannedPartBatchIds.has(partBatch.id)
                   : false;
                 const loc =
-                  partBatch?.part?.locations?.[0] || partBatch?.part?.location;
+                  partBatch?.part?.locations?.[0];
                 const locationStr = loc
                   ? [loc.rack, loc.shelf, loc.bin].filter(Boolean).join('-')
                   : undefined;
