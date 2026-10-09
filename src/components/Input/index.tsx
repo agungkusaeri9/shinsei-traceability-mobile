@@ -1,4 +1,4 @@
-import { Eye, EyeOff } from 'lucide-react-native/icons';
+import { Eye, EyeOff } from 'lucide-react-native';
 import React, { useState, forwardRef } from 'react';
 import {
   View,
@@ -101,13 +101,11 @@ const Input = forwardRef<TextInput, InputProps>(
               style={styles.eyeButton}
               onPress={() => setIsSecure(prev => !prev)}
             >
-              <Text style={[styles.eyeText, dark && styles.eyeTextDark]}>
-                {isSecure ? (
-                  <Eye size={16} color={dark ? '#A5B4FC' : '#6B7280'} />
-                ) : (
-                  <EyeOff size={16} color={dark ? '#A5B4FC' : '#6B7280'} />
-                )}
-              </Text>
+              {isSecure ? (
+                <Eye size={16} color={dark ? '#A5B4FC' : '#6B7280'} />
+              ) : (
+                <EyeOff size={16} color={dark ? '#A5B4FC' : '#6B7280'} />
+              )}
             </TouchableOpacity>
           )}
         </View>

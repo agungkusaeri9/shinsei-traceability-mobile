@@ -6,6 +6,7 @@ import {
   ShoppingCart,
   UserCheck,
   MapPin,
+  Truck,
 } from 'lucide-react-native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 
@@ -133,6 +134,14 @@ const SuperAdminDashboard: React.FC<Props> = ({ navigation }) => {
           color={colors.success}
           icon={<MapPin color={colors.success} size={22} />}
           onPress={() => navigation.navigate('Area')}
+        />
+      </View>
+      <View style={styles.statsRow}>
+        <QuickActionCard
+          title="Delivery"
+          color={colors.warning}
+          icon={<Truck color={colors.warning} size={22} />}
+          onPress={() => navigation.navigate('Delivery')}
         />
       </View>
     </View>

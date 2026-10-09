@@ -10,6 +10,8 @@ import {
   WarehouseStackParamList,
   AreaStackParamList,
   SmtStackParamList,
+  QaAssyStackParamList,
+  DeliveryStackParamList,
 } from '../types';
 import { useAuth } from '../hooks/useAuth';
 import AreaScreen from '../features/area/screens/AreaScreen';
@@ -18,23 +20,33 @@ import AreaSmtDashboard from '../features/area/screens/AreaSmtDashboard';
 import WarehouseScreen from '../features/warehouse/screens/WarehouseScreen';
 import StockInScreen from '../features/warehouse/screens/StockInScreen';
 import StockOutScreen from '../features/warehouse/screens/StockOutScreen';
+import PartAcceptanceScreen from '../features/warehouse/screens/PartAcceptanceScreen';
 import PartRegisterScreen from '../features/smt/screens/PartRegisterScreen';
 import PartChangingScreen from '../features/smt/screens/PartChangingScreen';
 import FinishScreen from '../features/smt/screens/FinishScreen';
+import QaAssyHomeScreen from '../features/qaAssy/screens/QaAssyHomeScreen';
+import QaRegisterScreen from '../features/qaAssy/screens/QaRegisterScreen';
+import QaAddPartScreen from '../features/qaAssy/screens/QaAddPartScreen';
+import QaFinishScreen from '../features/qaAssy/screens/QaFinishScreen';
 import {
   DashboardIcon,
   ProfileIcon,
   AreaIcon,
   WarehouseTabIcon,
   SmtTabIcon,
+  QaAssyTabIcon,
+  DeliveryTabIcon,
 } from '../utils/tabIcons';
 import SmtDashboard from '../features/dashboard/screens/SmtDashboard';
 import SmtHomeScreen from '../features/smt/screens/SmtHomeScreen';
+import DeliveryScreen from '../features/delivery/screens/DeliveryScreen';
 
 const Tab = createBottomTabNavigator<AppTabParamList>();
 const WarehouseStack = createNativeStackNavigator<WarehouseStackParamList>();
 const AreaStack = createNativeStackNavigator<AreaStackParamList>();
 const SmtStack = createNativeStackNavigator<SmtStackParamList>();
+const QaAssyStack = createNativeStackNavigator<QaAssyStackParamList>();
+const DeliveryStack = createNativeStackNavigator<DeliveryStackParamList>();
 
 const HIDDEN_TAB = { tabBarItemStyle: { display: 'none' as const } };
 
@@ -44,6 +56,7 @@ function WarehouseNavigator() {
       <WarehouseStack.Screen name="WarehouseHome" component={WarehouseScreen} />
       <WarehouseStack.Screen name="StockIn" component={StockInScreen} />
       <WarehouseStack.Screen name="StockOut" component={StockOutScreen} />
+      <WarehouseStack.Screen name="PartAcceptance" component={PartAcceptanceScreen} />
     </WarehouseStack.Navigator>
   );
 }
@@ -60,11 +73,17 @@ function AreaNavigator() {
       {/* <AreaStack.Screen name="Register" component={RegisterScreen} /> */}
       <AreaStack.Screen name="StockIn" component={StockInScreen} />
       <AreaStack.Screen name="StockOut" component={StockOutScreen} />
+      <AreaStack.Screen name="PartAcceptance" component={PartAcceptanceScreen} />
       <AreaStack.Screen name="SmtDashboard" component={AreaSmtDashboard} />
       <AreaStack.Screen name="SmtHome" component={AreaSmtDashboard} />
       <AreaStack.Screen name="PartRegister" component={PartRegisterScreen} />
       <AreaStack.Screen name="PartChanging" component={PartChangingScreen} />
       <AreaStack.Screen name="Finish" component={FinishScreen} />
+      <AreaStack.Screen name="QaAssyHome" component={QaAssyHomeScreen} />
+      <AreaStack.Screen name="QaRegister" component={QaRegisterScreen} />
+      <AreaStack.Screen name="QaAddPart" component={QaAddPartScreen} />
+      <AreaStack.Screen name="QaFinish" component={QaFinishScreen} />
+      <AreaStack.Screen name="DeliveryHome" component={DeliveryScreen} />
     </AreaStack.Navigator>
   );
 }
@@ -80,12 +99,38 @@ function SmtNavigator() {
   );
 }
 
+function QaAssyNavigator() {
+  return (
+    <QaAssyStack.Navigator screenOptions={{ headerShown: false }}>
+      <QaAssyStack.Screen name="QaAssyHome" component={QaAssyHomeScreen} />
+      <QaAssyStack.Screen name="QaRegister" component={QaRegisterScreen} />
+      <QaAssyStack.Screen name="QaAddPart" component={QaAddPartScreen} />
+      <QaAssyStack.Screen name="QaFinish" component={QaFinishScreen} />
+    </QaAssyStack.Navigator>
+  );
+}
+
+function DeliveryNavigator() {
+  return (
+    <DeliveryStack.Navigator screenOptions={{ headerShown: false }}>
+      <DeliveryStack.Screen name="DeliveryHome" component={DeliveryScreen} />
+    </DeliveryStack.Navigator>
+  );
+}
+
 const AppNavigator: React.FC = () => {
   const { user } = useAuth();
   const role = user?.role ?? '';
-  const isSuperadmin = role.toLowerCase() === 'superadmin';
-  const isWarehouse = role.toLowerCase() === 'wh';
-  const isSmt = role.toLowerCase() === 'smt';
+  const roleLower = role.toLowerCase();
+  const isSuperadmin = roleLower === 'superadmin';
+  const isWarehouse = roleLower === 'wh' || roleLower === 'warehouse';
+  const isSmt = roleLower === 'smt';
+  const isQaAssy =
+    roleLower === 'qa' ||
+    roleLower === 'assy' ||
+    roleLower === 'qa_assy' ||
+    roleLower === 'qa&assy';
+  const isDelivery = roleLower === 'delivery';
 
   return (
     <Tab.Navigator
@@ -134,6 +179,29 @@ const AppNavigator: React.FC = () => {
           ...(isSmt ? {} : HIDDEN_TAB),
         }}
       />
+
+      {/* QA & Assy - stack navigator */}
+      <Tab.Screen
+        name="QAAssy"
+        component={QaAssyNavigator}
+        options={{
+          title: 'QA & Assy',
+          tabBarIcon: QaAssyTabIcon,
+          ...(isQaAssy ? {} : HIDDEN_TAB),
+        }}
+      />
+
+      {/* Delivery - hanya untuk role delivery (bukan di tab superadmin, akses via Area navigator) */}
+      {isDelivery && (
+        <Tab.Screen
+          name="Delivery"
+          component={DeliveryNavigator}
+          options={{
+            title: 'Delivery',
+            tabBarIcon: DeliveryTabIcon,
+          }}
+        />
+      )}
 
       <Tab.Screen
         name="Profile"

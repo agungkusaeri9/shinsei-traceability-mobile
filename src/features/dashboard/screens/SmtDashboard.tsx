@@ -90,40 +90,6 @@ const SmtDashboard: React.FC<Props> = ({
 
   const renderHeader = () => (
     <View>
-      {/* ── SMT Stats ──────────────────────────────────── */}
-      <Text style={styles.sectionTitle}>Ringkasan SMT</Text>
-      <View style={styles.statsRow}>
-        <DashboardCard
-          title="Total Register"
-          value="48"
-          color={colors.primary}
-          icon={<ClipboardList color={colors.primary} size={20} />}
-          style={styles.cardHalf}
-        />
-        <DashboardCard
-          title="Part Changes"
-          value="5"
-          color={colors.orange}
-          icon={<ArrowLeftRight color={colors.orange} size={20} />}
-          style={styles.cardHalf}
-        />
-      </View>
-      <View style={styles.statsRow}>
-        <DashboardCard
-          title="Selesai Hari Ini"
-          value="12"
-          color={colors.success}
-          icon={<CheckCircle2 color={colors.success} size={20} />}
-          style={styles.cardHalf}
-        />
-        <DashboardCard
-          title="Dalam Proses"
-          value="3"
-          color={colors.warning}
-          icon={<Cpu color={colors.warning} size={20} />}
-          style={styles.cardHalf}
-        />
-      </View>
 
       {/* ── Quick Actions ─────────────────────────────── */}
       <Text style={[styles.sectionTitle, styles.sectionGap]}>
@@ -159,6 +125,43 @@ const SmtDashboard: React.FC<Props> = ({
           />
         )}
       </View>
+
+      {/* ── SMT Stats ──────────────────────────────────── */}
+      <Text style={styles.sectionTitle}>Ringkasan SMT</Text>
+      <View style={styles.statsRow}>
+        <DashboardCard
+          title="Total Register"
+          value="48"
+          color={colors.primary}
+          icon={<ClipboardList color={colors.primary} size={20} />}
+          style={styles.cardHalf}
+        />
+        <DashboardCard
+          title="Part Changes"
+          value="5"
+          color={colors.orange}
+          icon={<ArrowLeftRight color={colors.orange} size={20} />}
+          style={styles.cardHalf}
+        />
+      </View>
+      <View style={styles.statsRow}>
+        <DashboardCard
+          title="Selesai Hari Ini"
+          value="12"
+          color={colors.success}
+          icon={<CheckCircle2 color={colors.success} size={20} />}
+          style={styles.cardHalf}
+        />
+        <DashboardCard
+          title="Dalam Proses"
+          value="3"
+          color={colors.warning}
+          icon={<Cpu color={colors.warning} size={20} />}
+          style={styles.cardHalf}
+        />
+      </View>
+
+
 
       {/* ── Recent Activity ───────────────────────────── */}
       <Text style={[styles.sectionTitle, styles.sectionGap]}>

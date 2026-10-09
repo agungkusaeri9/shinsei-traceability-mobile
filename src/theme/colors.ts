@@ -4,6 +4,7 @@ export const colors = {
   // Backgrounds
   background: '#F3F4F6',
   surface: '#FFFFFF',
+  surfaceVariant: '#E5E7EB',
   header: '#0D1B2A', // admin header (navy)
   headerAlt: '#312E81', // superadmin header (deep indigo)
   headerWarehouse: '#7C2D12', // warehouse header (deep brown-orange)

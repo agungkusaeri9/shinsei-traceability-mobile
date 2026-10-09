@@ -31,7 +31,6 @@ import WarehouseHeader from '../components/WarehouseHeader';
 import InfoBanner from '../components/InfoBanner';
 import {
   fetchStkData,
-  checkStkLocation,
   stockIn,
 } from '../services/warehouseService';
 import { extractStkNumber } from '../../../utils/barcode';
@@ -46,10 +45,11 @@ type PhotoAsset = {
   name: string;
 };
 
-type Step = 'scan-stk' | 'scan-rack' | 'confirm' | 'done';
+type Step = 'scan-stk' | 'scan-rack' | 'confirm';
 
 const StockInScreen: React.FC<Props> = ({ navigation }) => {
   const barcodeRef = useRef<TextInput>(null);
+  const inputValueRef = useRef('');
   const [step, setStep] = useState<Step>('scan-stk');
   const [stkInput, setStkInput] = useState('');
   const [rackInput, setRackInput] = useState('');
@@ -129,6 +129,12 @@ const StockInScreen: React.FC<Props> = ({ navigation }) => {
     try {
       const response = await fetchStkData(trimmed);
       if (response.status && response.data) {
+        if (response.data.latestHistory !== "Acceptance") {
+          showError(`STK: ${trimmed} sudah di ${response.data.latestHistory}`);
+          setStkInput('');
+          focusScanner();
+          return;
+        }
         setStkData(response.data);
         showSuccess(`${trimmed} ditemukan. Silakan scan Barcode Rack.`);
         setStkInput('');
@@ -295,7 +301,7 @@ const StockInScreen: React.FC<Props> = ({ navigation }) => {
         `STK ${stkData.stkNumber} berhasil di-stock in`,
         'Stock In Berhasil',
       );
-      setStep('done');
+      handleReset();
     } catch (error: any) {
       const msg =
         error?.response?.data?.message || 'Gagal stock in. Coba lagi.';
@@ -307,6 +313,7 @@ const StockInScreen: React.FC<Props> = ({ navigation }) => {
 
   // ─── Reset Form ──────────────────────────────────────────────────────────
   const handleReset = () => {
+    inputValueRef.current = '';
     setStep('scan-stk');
     setStkInput('');
     setRackInput('');
@@ -316,6 +323,7 @@ const StockInScreen: React.FC<Props> = ({ navigation }) => {
     setIsLoadingStk(false);
     setIsCheckingRack(false);
     setIsSubmitting(false);
+    focusScanner();
   };
 
   const onRefresh = useCallback(async () => {
@@ -330,9 +338,7 @@ const StockInScreen: React.FC<Props> = ({ navigation }) => {
       ? 'Step 1: Scan STK Number'
       : step === 'scan-rack'
         ? 'Step 2: Scan Barcode Rack'
-        : step === 'confirm'
-          ? 'Step 3: Konfirmasi & Foto'
-          : 'Selesai';
+        : 'Step 3: Konfirmasi & Foto';
 
   const handleBackHeader = () => {
     if (step === 'scan-stk') {
@@ -366,18 +372,22 @@ const StockInScreen: React.FC<Props> = ({ navigation }) => {
         <TextInput
           ref={barcodeRef}
           value={step === 'scan-stk' ? stkInput : rackInput}
-          onChangeText={
-            step === 'scan-stk' ? setStkInput : setRackInput
-          }
+          onChangeText={(text) => {
+            inputValueRef.current = text;
+            if (step === 'scan-stk') setStkInput(text);
+            else setRackInput(text);
+          }}
           autoFocus
           showSoftInputOnFocus={false}
           blurOnSubmit={false}
           returnKeyType="done"
           onSubmitEditing={() => {
+            const value = inputValueRef.current;
+            inputValueRef.current = '';
             if (step === 'scan-stk') {
-              handleScanStk(stkInput);
+              handleScanStk(value);
             } else if (step === 'scan-rack') {
-              handleScanRack(rackInput);
+              handleScanRack(value);
             }
           }}
           onBlur={() => setTimeout(focusScanner, 100)}
@@ -467,7 +477,7 @@ const StockInScreen: React.FC<Props> = ({ navigation }) => {
                   Target Lokasi Penyimpanan ({locationsList.length})
                 </Text>
                 {locationsList.map((loc, idx) => (
-                  <View key={loc.id ?? idx} style={styles.locationCard}>
+                  <View key={`${loc.rack}-${loc.shelf}-${loc.bin}-${idx}`} style={styles.locationCard}>
                     <View style={styles.locationHeader}>
                       <MapPin color={colors.primary} size={18} />
                       <Text style={styles.locationTitle}>
@@ -504,7 +514,6 @@ const StockInScreen: React.FC<Props> = ({ navigation }) => {
               title="Batal / Scan STK Lain"
               variant="outline"
               onPress={handleReset}
-              style={{ marginTop: 12 }}
             />
           </ScrollView>
         )}
@@ -599,61 +608,24 @@ const StockInScreen: React.FC<Props> = ({ navigation }) => {
 
             <View style={styles.buttonRow}>
               <Button
-                title="Scan Rack Lagi"
+                title="Scan Ulang Rack"
                 variant="outline"
                 onPress={() => setStep('scan-rack')}
-                style={styles.halfBtn}
+                style={styles.scanBtn}
               />
+
               <Button
                 title="Submit"
                 onPress={handleSubmit}
                 isLoading={isSubmitting}
                 disabled={isSubmitting}
-                style={styles.halfBtn}
+                style={styles.submitBtn}
               />
             </View>
           </ScrollView>
         )}
 
-        {/* ── Step 4: Done ─────────────────────────────────── */}
-        {step === 'done' && stkData && (
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.doneScrollContent}
-            keyboardShouldPersistTaps="handled"
-          >
-            <View style={styles.doneContainer}>
-              <View style={styles.doneIconBadge}>
-                <CheckCircle2 color={colors.success} size={64} />
-              </View>
-              <Text style={styles.doneTitle}>Stock In Selesai!</Text>
-              <Text style={styles.doneSubtitle}>
-                {stkData.stkNumber} berhasil masuk gudang
-              </Text>
 
-              <View style={styles.doneSummary}>
-                <DetailRow label="STK Number" value={stkData.stkNumber} />
-                <DetailRow
-                  label="Part"
-                  value={stkData.part?.partNumber ?? 'N/A'}
-                />
-                <DetailRow label="Quantity" value={String(stkData.quantity)} />
-                {scannedLocation && (
-                  <DetailRow
-                    label="Verified Rack"
-                    value={`${scannedLocation.rack} / ${scannedLocation.shelf} / ${scannedLocation.bin}`}
-                  />
-                )}
-              </View>
-
-              <Button
-                title="Scan STK Lain"
-                onPress={handleReset}
-                style={styles.doneBtn}
-              />
-            </View>
-          </ScrollView>
-        )}
       </KeyboardAvoidingView>
     </View>
   );
@@ -717,7 +689,7 @@ const styles = StyleSheet.create({
 
   // Locations Section
   locationsSection: {
-    marginBottom: 16,
+    marginBottom: 8,
   },
   sectionHeaderTitle: {
     fontSize: 14,
@@ -809,13 +781,25 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   takePhotoBtn: {
-    paddingVertical: 14,
+    paddingVertical: 10,
   },
 
   // Buttons
-  buttonRow: { flexDirection: 'row', gap: 12, marginTop: 16 },
-  halfBtn: { flex: 1, paddingVertical: 12 },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 4,
+  },
 
+  scanBtn: {
+    flex: 1.3,
+    paddingVertical: 10,
+  },
+
+  submitBtn: {
+    flex: 1,
+    paddingVertical: 10,
+  },
   // Done
   doneScrollContent: { flexGrow: 1, justifyContent: 'center' },
   doneContainer: { alignItems: 'center', padding: 32, paddingBottom: 40 },

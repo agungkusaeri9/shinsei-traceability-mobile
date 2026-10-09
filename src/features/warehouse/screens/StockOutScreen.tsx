@@ -17,6 +17,7 @@ import {
   ScanBarcode,
   CheckCircle2,
   X,
+  AlertCircle,
 } from 'lucide-react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
@@ -29,7 +30,7 @@ import {
   showError,
   showInfo,
 } from '../../../services/toastService';
-import type { Order, OrderSummary } from '../types';
+import type { Order, OrderSummary, AvailablePart } from '../types';
 
 // Components
 import WarehouseHeader from '../components/WarehouseHeader';
@@ -52,6 +53,7 @@ type Step = 'select_wo' | 'confirm_wo' | 'scanning' | 'finished';
 
 const StockOutScreen: React.FC<Props> = ({ navigation }) => {
   const barcodeRef = useRef<TextInput>(null);
+  const inputValueRef = useRef('');
   const flatListRef = useRef<FlatList>(null);
 
   const [step, setStep] = useState<Step>('select_wo');
@@ -60,7 +62,8 @@ const StockOutScreen: React.FC<Props> = ({ navigation }) => {
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [loadingOrderDetail, setLoadingOrderDetail] = useState(false);
-  const [scannedPartBatchIds, setScannedPartBatchIds] = useState<Set<number>>(new Set());
+  const [scannedStkNumbers, setScannedStkNumbers] = useState<Set<string>>(new Set());
+  const [scannedPartIds, setScannedPartIds] = useState<number[]>([]);
   const [stkInput, setStkInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -77,8 +80,15 @@ const StockOutScreen: React.FC<Props> = ({ navigation }) => {
   const loadOrders = async () => {
     setLoadingOrders(true);
     try {
-      const data = await fetchOrders({ status: 'created' });
-      setOrders(Array.isArray(data) ? data : []);
+      const [createdOrders, partialOrders] = await Promise.all([
+        fetchOrders({ status: 'created' }),
+        fetchOrders({ status: 'partial' }),
+      ]);
+      const list1 = Array.isArray(createdOrders) ? createdOrders : [];
+      const list2 = Array.isArray(partialOrders) ? partialOrders : [];
+      const combinedMap = new Map();
+      [...list1, ...list2].forEach(o => combinedMap.set(o.id, o));
+      setOrders(Array.from(combinedMap.values()));
     } catch (error: any) {
       showError(error?.response?.data?.message || 'Gagal memuat data Order');
     } finally {
@@ -128,12 +138,12 @@ const StockOutScreen: React.FC<Props> = ({ navigation }) => {
     setLoadingOrderDetail(true);
     try {
       const order = await fetchOrderById(selectedOrderId);
-      if (!order.orderItems || order.orderItems.length === 0) {
-        showError('Order ini tidak memiliki item STK');
+      if (!order.availableParts || order.availableParts.length === 0) {
+        showError('Tidak ada STK yang tersedia untuk Order ini');
         return;
       }
       setSelectedOrder(order);
-      setScannedPartBatchIds(new Set());
+      setScannedStkNumbers(new Set());
       setStep('confirm_wo');
     } catch (error: any) {
       showError(error?.response?.data?.message || 'Gagal memuat detail Order');
@@ -142,111 +152,92 @@ const StockOutScreen: React.FC<Props> = ({ navigation }) => {
     }
   };
 
-  // Sort: unscanned first (original order), scanned last (by scan order)
-  const sortedOrderItems = useMemo(() => {
-    if (!selectedOrder?.orderItems) return [];
-
-    const scanned: typeof selectedOrder.orderItems = [];
-    const unscanned: typeof selectedOrder.orderItems = [];
-
-    for (const item of selectedOrder.orderItems) {
-      if (item.partBatch && scannedPartBatchIds.has(item.partBatch.id)) {
-        scanned.push(item);
+  // Sort available parts: unscanned first, scanned last
+  const sortedAvailableParts = useMemo(() => {
+    if (!selectedOrder?.availableParts) return [];
+    const scanned: AvailablePart[] = [];
+    const unscanned: AvailablePart[] = [];
+    for (const part of selectedOrder.availableParts) {
+      if (scannedStkNumbers.has(part.stkNumber)) {
+        scanned.push(part);
       } else {
-        unscanned.push(item);
+        unscanned.push(part);
       }
     }
-
     return [...unscanned, ...scanned];
-  }, [selectedOrder?.orderItems, scannedPartBatchIds]);
+  }, [selectedOrder?.availableParts, scannedStkNumbers]);
 
-  // Get STK numbers from order items
-  const stkNumbers =
-    selectedOrder?.orderItems
-      .map(item => item.partBatch?.stkNumber)
-      .filter(Boolean) ?? [];
+  const availableCount = selectedOrder?.availableParts?.length ?? 0;
+  const missingParts = selectedOrder?.missingParts ?? [];
 
-  const handleScanStk = async (value: string) => {
+  const handleScanStk = (value: string) => {
     const trimmed = extractStkNumber(value);
     if (!trimmed || !selectedOrder) {
       focusScanner();
       return;
     }
 
-    // Find matching order item by stkNumber
-    const matchedItem = selectedOrder.orderItems.find(
-      item =>
-        item.partBatch?.stkNumber?.trim().toLowerCase() ===
-        trimmed.toLowerCase(),
+    const matchedPart = selectedOrder.availableParts.find(
+      p => p.stkNumber?.trim().toLowerCase() === trimmed.toLowerCase(),
     );
 
-    if (matchedItem) {
-      const displayStk = matchedItem.partBatch?.stkNumber || trimmed;
-      if (scannedPartBatchIds.has(matchedItem.partBatch.id)) {
-        showInfo(`${displayStk} sudah di-scan sebelumnya`);
-        setStkInput('');
-        focusScanner();
-        return;
-      }
-
-      setIsSubmitting(true);
-      try {
-        await submitMaterialFeeding({
-          orderId: selectedOrder.id,
-          processedDate: new Date().toISOString(),
-          materialFeedingItems: [{ partBatchId: matchedItem.partBatch.id }],
-        });
-        setScannedPartBatchIds(prev => new Set(prev).add(matchedItem.partBatch.id));
-        showSuccess(`${displayStk} berhasil di-scan`);
-
-        // Auto-scroll to top so next unscanned item is visible
+    if (matchedPart) {
+      if (scannedStkNumbers.has(matchedPart.stkNumber)) {
+        showInfo(`${matchedPart.stkNumber} sudah di-scan sebelumnya`);
+      } else {
+        setScannedStkNumbers(prev => new Set(prev).add(matchedPart.stkNumber));
+        setScannedPartIds(prev => [...prev, matchedPart.partId]);
+        showSuccess(`${matchedPart.stkNumber} berhasil di-scan`);
         flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
-
-        // All items scanned → auto-finish
-        if (scannedPartBatchIds.size + 1 >= stkNumbers.length) {
-          showSuccess(
-            `Stock Out ${selectedOrder.orderNumber} berhasil diproses`,
-            'Stock Out Berhasil',
-          );
-          setStep('finished');
-          setStkInput('');
-          return;
-        }
-      } catch (error: any) {
-        showError(error?.response?.data?.message || 'Gagal memproses STK');
-      } finally {
-        setIsSubmitting(false);
       }
     } else {
-      showError(`${trimmed} tidak terdaftar dalam Order ini`);
+      const isMissing = selectedOrder.missingParts?.some(
+        p => p.partNumber?.trim().toLowerCase() === trimmed.toLowerCase(),
+      );
+      if (isMissing) {
+        showError(`${trimmed} belum tersedia di gudang`);
+      } else {
+        showError(`${trimmed} tidak terdaftar dalam Order ini`);
+      }
     }
 
     setStkInput('');
     focusScanner();
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!selectedOrder) return;
-    if (scannedPartBatchIds.size < stkNumbers.length) {
-      showError(
-        `Masih ada ${stkNumbers.length - scannedPartBatchIds.size
-        } STK yang belum di-scan`,
-      );
+    if (scannedStkNumbers.size === 0) {
+      showError('Belum ada STK yang di-scan');
       return;
     }
 
-    showSuccess(
-      `Stock Out ${selectedOrder.orderNumber} berhasil diproses`,
-      'Stock Out Berhasil',
-    );
-    setStep('finished');
+    setIsSubmitting(true);
+    try {
+      await submitMaterialFeeding({
+        orderId: selectedOrder.id,
+        processedDate: new Date().toISOString(),
+        materialFeedingItems: scannedPartIds.map(id => ({ partBatchId: id })),
+      });
+      showSuccess(
+        `Stock Out ${selectedOrder.orderNumber} berhasil diproses`,
+        'Stock Out Berhasil',
+      );
+      setStep('finished');
+    } catch (error: any) {
+      showError(error?.response?.data?.message || 'Gagal memproses Stock Out');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleReset = () => {
+    inputValueRef.current = '';
     setStep('select_wo');
     setSelectedOrderId(null);
     setSelectedOrder(null);
-    setScannedPartBatchIds(new Set());
+    setScannedStkNumbers(new Set());
+    setScannedPartIds([]);
     setStkInput('');
   };
 
@@ -268,7 +259,7 @@ const StockOutScreen: React.FC<Props> = ({ navigation }) => {
         iconBgColor={`${colors.orange}25`}
         onBack={() =>
           step === 'select_wo'
-            ? navigation.navigate('WarehouseHome')
+            ? navigation.goBack()
             : handleReset()
         }
         rightSlot={
@@ -326,7 +317,7 @@ const StockOutScreen: React.FC<Props> = ({ navigation }) => {
               <Button
                 title="Batal"
                 variant="outline"
-                onPress={() => navigation.navigate('WarehouseHome')}
+                onPress={() => navigation.goBack()}
                 style={styles.halfBtn}
               />
               <Button
@@ -365,35 +356,18 @@ const StockOutScreen: React.FC<Props> = ({ navigation }) => {
                 value={selectedOrder.customer?.name ?? 'N/A'}
               />
               <DetailRow
-                label="Machine"
-                value={
-                  [
-                    ...new Set(
-                      selectedOrder.orderItems
-                        ?.map(item => item.machine?.name)
-                        .filter(Boolean)
-                    ),
-                  ].join(', ') || 'N/A'
-                }
-              />
-              <DetailRow
-                label="Line"
-                value={
-                  [
-                    ...new Set(
-                      selectedOrder.orderItems
-                        ?.map(item => item.line?.name)
-                        .filter(Boolean)
-                    ),
-                  ].join(', ') || 'N/A'
-                }
-              />
-              <DetailRow
                 label="Model"
                 value={selectedOrder.product?.name ?? 'N/A'}
               />
               <DetailRow label="Lot Number" value={selectedOrder.lotNumber} />
-              <DetailRow label="Total STK" value={String(stkNumbers.length)} />
+              <DetailRow
+                label="STK Tersedia"
+                value={String(selectedOrder.availableParts?.length ?? 0)}
+              />
+              <DetailRow
+                label="STK Belum Tersedia"
+                value={String(selectedOrder.missingParts?.length ?? 0)}
+              />
             </View>
 
             <View style={styles.buttonRow}>
@@ -420,55 +394,72 @@ const StockOutScreen: React.FC<Props> = ({ navigation }) => {
             <TextInput
               ref={barcodeRef}
               value={stkInput}
-              onChangeText={setStkInput}
+              onChangeText={(text) => { inputValueRef.current = text; setStkInput(text); }}
               autoFocus
               showSoftInputOnFocus={false}
               blurOnSubmit={false}
               returnKeyType="done"
-              onSubmitEditing={() => handleScanStk(stkInput)}
+              onSubmitEditing={() => { const value = inputValueRef.current; inputValueRef.current = ''; handleScanStk(value); }}
               onBlur={() => setTimeout(focusScanner, 100)}
               style={styles.hiddenInput}
             />
 
             <StkScanProgress
-              scanned={scannedPartBatchIds.size}
-              total={stkNumbers.length}
+              scanned={scannedStkNumbers.size}
+              total={availableCount}
             />
 
             <FlatList
               ref={flatListRef}
-              data={sortedOrderItems}
-              keyExtractor={item => String(item.id)}
+              data={sortedAvailableParts}
+              keyExtractor={item => item.stkNumber}
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.stkListContent}
               renderItem={({ item }) => {
-                const partBatch = item.partBatch;
-                const isScanned = partBatch
-                  ? scannedPartBatchIds.has(partBatch.id)
-                  : false;
-                const loc =
-                  partBatch?.part?.locations?.[0];
-                const locationStr = loc
-                  ? [loc.rack, loc.shelf, loc.bin].filter(Boolean).join('-')
-                  : undefined;
-
+                const isScanned = scannedStkNumbers.has(item.stkNumber);
                 return (
                   <StkScanItem
-                    stkNumber={partBatch?.stkNumber ?? '-'}
+                    stkNumber={item.stkNumber}
                     isScanned={isScanned}
-                    partNo={partBatch?.part?.partNumber}
-                    pdd={partBatch?.part?.inventoryCode}
-                    location={locationStr}
+                    partNo={item.partNumber}
                   />
                 );
               }}
               ListHeaderComponent={
-                <View style={styles.scanHint}>
-                  <ScanBarcode color={colors.primary} size={18} />
-                  <Text style={styles.scanHintText}>
-                    Scan barcode STK untuk memproses order
-                  </Text>
-                </View>
+                <>
+                  <View style={styles.scanHint}>
+                    <ScanBarcode color={colors.primary} size={18} />
+                    <Text style={styles.scanHintText}>
+                      Scan barcode STK untuk memproses order
+                    </Text>
+                  </View>
+                  {missingParts.length > 0 && (
+                    <View style={styles.missingBanner}>
+                      <AlertCircle color={colors.warning ?? '#F59E0B'} size={16} />
+                      <Text style={styles.missingBannerText}>
+                        {missingParts.length} part belum tersedia di gudang
+                      </Text>
+                    </View>
+                  )}
+                </>
+              }
+              ListFooterComponent={
+                missingParts.length > 0 ? (
+                  <View style={styles.missingSection}>
+                    <Text style={styles.missingSectionTitle}>
+                      Part Belum Tersedia
+                    </Text>
+                    {missingParts.map((p, i) => (
+                      <View key={`missing-${i}`} style={styles.missingItem}>
+                        <AlertCircle color={colors.warning ?? '#F59E0B'} size={14} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.missingPartNumber}>{p.partNumber}</Text>
+                          <Text style={styles.missingPartCount}>Qty kurang: {p.stkCount}</Text>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                ) : null
               }
             />
 
@@ -480,7 +471,7 @@ const StockOutScreen: React.FC<Props> = ({ navigation }) => {
                 style={styles.bottomBtn}
               />
               <Button
-                title={`Finish (${scannedPartBatchIds.size}/${stkNumbers.length})`}
+                title={`Finish (${scannedStkNumbers.size}/${availableCount})`}
                 onPress={handleSubmit}
                 isLoading={isSubmitting}
                 disabled={isSubmitting}
@@ -517,8 +508,8 @@ const StockOutScreen: React.FC<Props> = ({ navigation }) => {
                   value={selectedOrder.customer?.name ?? 'N/A'}
                 />
                 <DetailRow
-                  label="Total STK"
-                  value={String(stkNumbers.length)}
+                  label="Total STK Diproses"
+                  value={String(scannedStkNumbers.size)}
                 />
               </View>
 
@@ -589,6 +580,47 @@ const styles = StyleSheet.create({
 
   // STK List
   stkListContent: { padding: 20, paddingBottom: 100 },
+
+  // Missing parts
+  missingBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#FEF3C715',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#F59E0B30',
+  },
+  missingBannerText: { fontSize: 12, color: '#B45309', flex: 1 },
+  missingSection: {
+    marginTop: 12,
+    marginBottom: 12,
+    backgroundColor: '#FEF3C710',
+    borderRadius: 10,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#F59E0B20',
+  },
+  missingSectionTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#B45309',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  missingItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F59E0B15',
+  },
+  missingPartNumber: { fontSize: 13, fontWeight: '600', color: '#92400E' },
+  missingPartCount: { fontSize: 11, color: '#B45309', marginTop: 2 },
 
   // Bottom Bar
   bottomBar: {

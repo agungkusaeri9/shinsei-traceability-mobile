@@ -4,6 +4,7 @@ import { extractStkNumber } from '../../../utils/barcode';
 import {
   Supplier,
   Maker,
+  CreatePartAcceptancePayload,
   PartAcceptancePayload,
   PartAcceptanceResponse,
   StockInPayload,
@@ -60,7 +61,7 @@ export const createMaker = async (data: Omit<Maker, 'id'>): Promise<Maker> => {
 // ─── Part Acceptance ───────────────────────────────────────────────────────
 
 export const registerPartAcceptance = async (
-  data: PartAcceptancePayload,
+  data: CreatePartAcceptancePayload | PartAcceptancePayload,
 ): Promise<PartAcceptanceResponse> => {
   const response = await httpClient.post<PartAcceptanceResponse>(
     API_ENDPOINTS.PART_ACCEPTANCES,
@@ -92,8 +93,6 @@ export const stockIn = async (
       name: data.evidencePhoto.name,
     } as any);
   }
-
-  console.log(formData);
 
   const response = await httpClient.post<StockInResponse>(
     API_ENDPOINTS.WH_STOCK_INS,

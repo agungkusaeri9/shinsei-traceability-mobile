@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  TouchableOpacity,
 } from 'react-native';
 import {
   ArrowLeftRight,
@@ -31,7 +32,7 @@ import {
   showError,
   showInfo,
 } from '../../../services/toastService';
-import type { SmtOrderData, SmtOrderDetail, SmtPartBatch } from '../types';
+import type { SmtOrderData, SmtOrderDetail, SmtStkListItem } from '../types';
 import { fetchOrderByLotNumber, submitSmt } from '../services/smtService';
 import { fetchStkData } from '../../warehouse/services/warehouseService';
 import { extractStkNumber } from '../../../utils/barcode';
@@ -47,20 +48,20 @@ type Step =
   | 'scan_line'
   | 'scan_machine'
   | 'scan_product'
-  | 'select_parts'
   | 'scan_new_stk'
   | 'finished';
 
 interface PartChangeItem {
-  partBatch: SmtPartBatch;
-  pddm: string; // inventoryCode from old part
-  partNo: string; // partName from old part
+  inventoryCode: string;
+  partNumber: string;
   replaced: boolean;
   replacedWithStk?: string;
+  partBatchId?: number;
 }
 
 const PartChangingScreen: React.FC<Props> = ({ navigation }) => {
   const barcodeRef = useRef<TextInput>(null);
+  const inputValueRef = useRef('');
   const [step, setStep] = useState<Step>('scan_lot');
   const [lotNumber, setLotNumber] = useState('');
   const [scanInput, setScanInput] = useState('');
@@ -74,6 +75,7 @@ const PartChangingScreen: React.FC<Props> = ({ navigation }) => {
   );
   const [productSelect, setProductSelect] = useState('');
   const [partChangeItems, setPartChangeItems] = useState<PartChangeItem[]>([]);
+  const [selectedItemIndex, setSelectedItemIndex] = useState<number | null>(null);
 
   // Auto-focus scanner
   const focusScanner = useCallback(() => {
@@ -105,7 +107,7 @@ const PartChangingScreen: React.FC<Props> = ({ navigation }) => {
         setOrderData(response.data);
         showSuccess(`Lot number ${trimmed} ditemukan`);
         setScanInput('');
-        setStep('scan_line');
+        setStep('scan_product');
       } else {
         showError(response.message || 'Lot number tidak ditemukan');
         setScanInput('');
@@ -122,7 +124,21 @@ const PartChangingScreen: React.FC<Props> = ({ navigation }) => {
     }
   };
 
-  // ─── Step 2: Scan Line ──────────────────────────────────────────────────
+  // ─── Step 2: Scan Product Select ────────────────────────────────────────
+  const handleScanProductSelect = (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      focusScanner();
+      return;
+    }
+
+    setProductSelect(trimmed);
+    showSuccess(`Product Select: ${trimmed}`);
+    setScanInput('');
+    setStep('scan_line');
+  };
+
+  // ─── Step 3: Scan Line ──────────────────────────────────────────────────
   const handleScanLine = (value: string) => {
     const trimmed = value.trim();
     if (!trimmed || !orderData) {
@@ -148,7 +164,7 @@ const PartChangingScreen: React.FC<Props> = ({ navigation }) => {
     }
   };
 
-  // ─── Step 3: Scan Machine ───────────────────────────────────────────────
+  // ─── Step 4: Scan Machine ───────────────────────────────────────────────
   const handleScanMachine = (value: string) => {
     const trimmed = value.trim();
     if (!trimmed || !matchedDetail) {
@@ -163,7 +179,7 @@ const PartChangingScreen: React.FC<Props> = ({ navigation }) => {
     if (machineMatch) {
       showSuccess(`Machine ${matchedDetail.machine.name} cocok`);
       setScanInput('');
-      setStep('scan_product');
+      handleStartPartChanging();
     } else {
       showError(
         `Machine "${trimmed}" tidak cocok. Harus: ${matchedDetail.machine.name}`,
@@ -173,32 +189,27 @@ const PartChangingScreen: React.FC<Props> = ({ navigation }) => {
     }
   };
 
-  // ─── Step 4: Scan Product Select ────────────────────────────────────────
-  const handleScanProductSelect = (value: string) => {
-    const trimmed = value.trim();
-    if (!trimmed) {
-      focusScanner();
-      return;
-    }
-
-    setProductSelect(trimmed);
-    showSuccess(`Product Select: ${trimmed}`);
-    setScanInput('');
-    setStep('select_parts');
-  };
-
   // ─── Step 5: Select Parts (auto - just show list, then move to scanning) ─
   const handleStartPartChanging = () => {
-    if (!matchedDetail) return;
+    if (!matchedDetail || !orderData) return;
 
-    // Build part change items from part batches
-    const items: PartChangeItem[] = matchedDetail.partBatches.map(pb => ({
-      partBatch: pb,
-      pddm: pb.part?.inventoryCode ?? '',
-      partNo: pb.part?.partName ?? '',
+    // Filter matching details for current line & machine
+    const lineName = matchedDetail.line.name.toLowerCase();
+    const machineName = matchedDetail.machine.name.toLowerCase();
+    const matching = orderData.details.filter(
+      d =>
+        d.line.name.toLowerCase() === lineName &&
+        d.machine.name.toLowerCase() === machineName,
+    );
+    const detailsToUse = matching.length > 0 ? matching : orderData.details;
+
+    const items: PartChangeItem[] = detailsToUse.map(d => ({
+      inventoryCode: d.inventoryCode,
+      partNumber: d.stkList?.[0]?.partNumber || '-',
       replaced: false,
     }));
     setPartChangeItems(items);
+    setSelectedItemIndex(null);
     setScanInput('');
     setStep('scan_new_stk');
   };
@@ -215,7 +226,7 @@ const PartChangingScreen: React.FC<Props> = ({ navigation }) => {
     try {
       const stkResponse = await fetchStkData(trimmed);
       if (!stkResponse.status || !stkResponse.data) {
-        showError(stkResponse.message || 'STK tidak ditemukan');
+        showError(stkResponse.message || `STK "${trimmed}" tidak ditemukan`);
         setScanInput('');
         focusScanner();
         setIsLoading(false);
@@ -223,24 +234,67 @@ const PartChangingScreen: React.FC<Props> = ({ navigation }) => {
       }
 
       const stkData: StkData = stkResponse.data;
-      const stkInventoryCode = stkData.part?.inventoryCode ?? '';
-      const stkPartName = stkData.part?.partName ?? '';
+      const latestHist = (stkData.latestHistory || '').toLowerCase();
 
-      // Find matching part batch by inventoryCode or partName
-      const matchIndex = partChangeItems.findIndex(
-        item =>
-          !item.replaced &&
-          ((item.pddm &&
-            stkInventoryCode &&
-            item.pddm.toLowerCase() === stkInventoryCode.toLowerCase()) ||
-            (item.partNo &&
-              stkPartName &&
-              item.partNo.toLowerCase() === stkPartName.toLowerCase())),
-      );
+      // Check latestHistory
+      if (latestHist === 'register') {
+        showError(`STK ${trimmed} sudah di-register di mesin!`);
+        setScanInput('');
+        focusScanner();
+        setIsLoading(false);
+        return;
+      }
+
+      if (latestHist !== 'stockout' && latestHist !== 'stock out') {
+        showError(
+          `STK ${trimmed} belum distock-out dari warehouse! (Status: ${stkData.latestHistory})`,
+        );
+        setScanInput('');
+        focusScanner();
+        setIsLoading(false);
+        return;
+      }
+
+      const stkInventoryCode = (stkData.part?.inventoryCode || '').trim();
+      const stkPartNumber = (stkData.part?.partNumber || '').trim();
+
+      // Find matching item
+      let matchIndex = -1;
+
+      // If operator manually tapped/selected a card item
+      if (selectedItemIndex !== null && selectedItemIndex < partChangeItems.length) {
+        const selItem = partChangeItems[selectedItemIndex];
+        const invMatch = selItem.inventoryCode.toLowerCase() === stkInventoryCode.toLowerCase();
+        if (invMatch) {
+          matchIndex = selectedItemIndex;
+        } else {
+          showError(
+            `STK ${trimmed} (PDDM: ${stkInventoryCode}) tidak cocok dengan item yang dipilih (${selItem.inventoryCode})`,
+          );
+          setScanInput('');
+          focusScanner();
+          setIsLoading(false);
+          return;
+        }
+      } else {
+        // Auto match by inventoryCode & partNumber
+        matchIndex = partChangeItems.findIndex(
+          item =>
+            item.inventoryCode.toLowerCase() === stkInventoryCode.toLowerCase() &&
+            (!stkPartNumber || item.partNumber.toLowerCase() === stkPartNumber.toLowerCase() || item.partNumber === '-'),
+        );
+
+        if (matchIndex === -1) {
+          // Fallback match by inventoryCode only
+          matchIndex = partChangeItems.findIndex(
+            item => item.inventoryCode.toLowerCase() === stkInventoryCode.toLowerCase(),
+          );
+        }
+      }
 
       if (matchIndex === -1) {
         showError(
-          'Part yang digunakan salah! Tidak ada kecocokan dengan data lot.',
+          `STK ${trimmed} (PDDM: ${stkInventoryCode || '-'}, Part: ${stkPartNumber || '-'}) tidak ada di daftar order ini`,
         );
         setScanInput('');
         focusScanner();
@@ -250,32 +304,28 @@ const PartChangingScreen: React.FC<Props> = ({ navigation }) => {
 
       const matchedItem = partChangeItems[matchIndex];
       const newStk = stkData.stkNumber || trimmed;
+      const isOverwrite = matchedItem.replaced;
+      const oldStk = matchedItem.replacedWithStk;
 
-      // Submit to API
-      setIsSubmitting(true);
-      try {
-        await submitSmt({
-          orderId: matchedDetail.orderId,
-          partBatchId: matchedItem.partBatch.id,
-          productSelect: productSelect,
-        });
+      // Mark as replaced, store partBatchId
+      const updatedItems = [...partChangeItems];
+      updatedItems[matchIndex] = {
+        ...updatedItems[matchIndex],
+        replaced: true,
+        replacedWithStk: newStk,
+        partBatchId: stkData.id,
+      };
+      setPartChangeItems(updatedItems);
+      setSelectedItemIndex(null);
 
-        // Mark as replaced
-        const updatedItems = [...partChangeItems];
-        updatedItems[matchIndex] = {
-          ...updatedItems[matchIndex],
-          replaced: true,
-          replacedWithStk: newStk,
-        };
-        setPartChangeItems(updatedItems);
-
+      if (isOverwrite) {
         showSuccess(
-          `${matchedItem.partBatch.stkNumber} berhasil di-ganti dengan ${newStk}. Tekan Finish jika sudah selesai.`,
+          `STK untuk ${matchedItem.inventoryCode} diperbarui: ${oldStk} ➔ ${newStk}`,
         );
-      } catch (error: any) {
-        showError(error?.response?.data?.message || `Gagal submit part change`);
-      } finally {
-        setIsSubmitting(false);
+      } else {
+        showSuccess(
+          `Part ${matchedItem.inventoryCode} (${matchedItem.partNumber}) berhasil diganti dengan ${newStk}`,
+        );
       }
     } catch (error: any) {
       showError(error?.response?.data?.message || 'Gagal mengambil data STK');
@@ -288,40 +338,66 @@ const PartChangingScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   // ─── Finish ─────────────────────────────────────────────────────────────
-  const handleFinish = () => {
-    showSuccess('Part Changing selesai!');
-    setStep('finished');
+  const handleFinish = async () => {
+    const partBatchIds = partChangeItems
+      .filter(i => i.replaced && i.partBatchId != null)
+      .map(i => i.partBatchId as number);
+
+    if (partBatchIds.length === 0) {
+      showError('Belum ada part yang diganti');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await submitSmt({
+        lotNumber,
+        partBatchIds,
+        productSelect,
+      });
+      showSuccess('Part Changing selesai!');
+      setStep('finished');
+    } catch (error: any) {
+      showError(error?.response?.data?.message || 'Gagal mengirim data Part Changing');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // ─── Reset ──────────────────────────────────────────────────────────────
   const handleReset = () => {
+    inputValueRef.current = '';
     setStep('scan_lot');
     setScanInput('');
     setOrderData(null);
     setMatchedDetail(null);
     setProductSelect('');
     setPartChangeItems([]);
+    setSelectedItemIndex(null);
     setIsLoading(false);
     setIsSubmitting(false);
   };
 
   // ─── Submit handler based on step ───────────────────────────────────────
   const handleSubmitEditing = () => {
+    const val = inputValueRef.current;
+    inputValueRef.current = '';
+    setScanInput('');
     switch (step) {
       case 'scan_lot':
-        handleScanLotNumber(scanInput);
+        handleScanLotNumber(val);
         break;
       case 'scan_line':
-        handleScanLine(scanInput);
+        handleScanLine(val);
         break;
       case 'scan_machine':
-        handleScanMachine(scanInput);
+        handleScanMachine(val);
         break;
       case 'scan_product':
-        handleScanProductSelect(scanInput);
+        handleScanProductSelect(val);
         break;
       case 'scan_new_stk':
-        handleScanNewStk(scanInput);
+        handleScanNewStk(val);
         break;
     }
   };
@@ -336,13 +412,11 @@ const PartChangingScreen: React.FC<Props> = ({ navigation }) => {
           ? 'Scan Machine'
           : step === 'scan_product'
             ? 'Scan Product Select'
-            : step === 'select_parts'
-              ? 'Daftar Part'
-              : step === 'scan_new_stk'
+            : step === 'scan_new_stk'
                 ? 'Scan STK Baru'
                 : 'Selesai';
 
-  const partBatches = matchedDetail?.partBatches ?? [];
+  const stkList = matchedDetail?.stkList ?? [];
   const replacedCount = partChangeItems.filter(i => i.replaced).length;
 
   return (
@@ -374,7 +448,10 @@ const PartChangingScreen: React.FC<Props> = ({ navigation }) => {
         <TextInput
           ref={barcodeRef}
           value={scanInput}
-          onChangeText={setScanInput}
+          onChangeText={text => {
+            inputValueRef.current = text;
+            setScanInput(text);
+          }}
           autoFocus
           showSoftInputOnFocus={false}
           blurOnSubmit={false}
@@ -427,8 +504,8 @@ const PartChangingScreen: React.FC<Props> = ({ navigation }) => {
           </ScrollView>
         )}
 
-        {/* ── Step 2: Scan Line ─────────────────────────────── */}
-        {step === 'scan_line' && orderData && (
+        {/* ── Step 2: Scan Product Select ───────────────────── */}
+        {step === 'scan_product' && orderData && (
           <ScrollView
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.scrollContent}
@@ -455,21 +532,21 @@ const PartChangingScreen: React.FC<Props> = ({ navigation }) => {
             <View style={styles.detailCard}>
               <DetailRow label="Lot Number" value={lotNumber} />
               <DetailRow label="Customer" value={orderData.customer.name} />
-              <DetailRow label="PCB Model" value={orderData.pcbModel?.name || '-'} />
+              <DetailRow label="PCB Model" value={orderData.product?.name || '-'} />
               <DetailRow label="Face" value={orderData.pcbModelFace} />
             </View>
 
             <View style={styles.infoCard}>
-              <MapPin color={colors.orange} size={24} />
+              <Layers color={colors.orange} size={24} />
               <Text style={styles.infoText}>
-                Scan Line untuk mencocokkan data order
+                Scan Product Select (satu kali saja)
               </Text>
             </View>
           </ScrollView>
         )}
 
-        {/* ── Step 3: Scan Machine ──────────────────────────── */}
-        {step === 'scan_machine' && orderData && matchedDetail && (
+        {/* ── Step 3: Scan Line ─────────────────────────────── */}
+        {step === 'scan_line' && orderData && (
           <ScrollView
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.scrollContent}
@@ -495,23 +572,22 @@ const PartChangingScreen: React.FC<Props> = ({ navigation }) => {
 
             <View style={styles.detailCard}>
               <DetailRow label="Customer" value={orderData.customer.name} />
-              <DetailRow label="PCB Model" value={orderData.pcbModel.name} />
+              <DetailRow label="PCB Model" value={orderData.product?.name || '-'} />
               <DetailRow label="Face" value={orderData.pcbModelFace} />
-              <DetailRow label="Line" value={matchedDetail.line.name} />
-              <DetailRow label="PO Number" value={matchedDetail.poNumber} />
+              <DetailRow label="Product Select" value={productSelect} />
             </View>
 
             <View style={styles.infoCard}>
-              <Cpu color={colors.orange} size={24} />
+              <MapPin color={colors.orange} size={24} />
               <Text style={styles.infoText}>
-                Scan Machine untuk mencocokkan data order
+                Scan Line untuk mencocokkan data order
               </Text>
             </View>
           </ScrollView>
         )}
 
-        {/* ── Step 4: Scan Product Select ───────────────────── */}
-        {step === 'scan_product' && orderData && matchedDetail && (
+        {/* ── Step 4: Scan Machine ──────────────────────────── */}
+        {step === 'scan_machine' && orderData && matchedDetail && (
           <ScrollView
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.scrollContent}
@@ -537,70 +613,17 @@ const PartChangingScreen: React.FC<Props> = ({ navigation }) => {
 
             <View style={styles.detailCard}>
               <DetailRow label="Customer" value={orderData.customer.name} />
-              <DetailRow label="PCB Model" value={orderData.pcbModel.name} />
+              <DetailRow label="PCB Model" value={orderData.product?.name || '-'} />
               <DetailRow label="Face" value={orderData.pcbModelFace} />
+              <DetailRow label="Product Select" value={productSelect} />
               <DetailRow label="Line" value={matchedDetail.line.name} />
-              <DetailRow label="Machine" value={matchedDetail.machine.name} />
             </View>
 
             <View style={styles.infoCard}>
-              <Layers color={colors.orange} size={24} />
+              <Cpu color={colors.orange} size={24} />
               <Text style={styles.infoText}>
-                Scan Product Select (satu kali saja)
+                Scan Machine untuk mencocokkan data order
               </Text>
-            </View>
-          </ScrollView>
-        )}
-
-        {/* ── Step 5: Parts List ─────────────────────────────── */}
-        {step === 'select_parts' && orderData && matchedDetail && (
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.scrollContent}
-            keyboardShouldPersistTaps="handled"
-          >
-            <View style={styles.infoCard}>
-              <Package color={colors.orange} size={24} />
-              <Text style={styles.infoText}>
-                Daftar part dari lot number. Tekan Mulai untuk mulai scan STK
-                pengganti.
-              </Text>
-            </View>
-
-            {partBatches.map(pb => (
-              <View key={pb.id} style={styles.partItem}>
-                <Package color={colors.textMuted} size={18} />
-                <View style={styles.partItemInfo}>
-                  <Text style={styles.partItemStk}>{pb.stkNumber}</Text>
-                  <Text style={styles.partItemDetail}>
-                    Qty: {pb.quantity} | Lot: {pb.lotNumber ?? '-'}
-                  </Text>
-                  {pb.part?.inventoryCode ? (
-                    <Text style={styles.partItemDetail}>
-                      PDDM: {pb.part.inventoryCode}
-                    </Text>
-                  ) : null}
-                  {pb.part?.partName ? (
-                    <Text style={styles.partItemDetail}>
-                      Part No: {pb.part.partName}
-                    </Text>
-                  ) : null}
-                </View>
-              </View>
-            ))}
-
-            <View style={styles.buttonRow}>
-              <Button
-                title="Batal"
-                variant="outline"
-                onPress={handleReset}
-                style={styles.halfBtn}
-              />
-              <Button
-                title="Mulai Part Changing"
-                onPress={handleStartPartChanging}
-                style={styles.halfBtn}
-              />
             </View>
           </ScrollView>
         )}
@@ -644,50 +667,64 @@ const PartChangingScreen: React.FC<Props> = ({ navigation }) => {
               <View style={styles.scanHint}>
                 <ScanBarcode color={colors.orange} size={18} />
                 <Text style={styles.scanHintText}>
-                  Scan STK baru untuk mengganti part. Product: {productSelect}
+                  Tekan card item untuk memilih atau scan STK pengganti. Product: {orderData.product?.name}
                 </Text>
               </View>
 
-              {partChangeItems.map((item, index) => (
-                <View
-                  key={item.partBatch.id}
-                  style={[
-                    styles.partChangeItem,
-                    item.replaced && styles.partChangeItemReplaced,
-                  ]}
-                >
-                  <View style={styles.partChangeItemLeft}>
-                    {item.replaced ? (
-                      <CheckCircle2 color={colors.success} size={20} />
-                    ) : (
-                      <Package color={colors.textMuted} size={20} />
-                    )}
-                    <View style={styles.partChangeItemInfo}>
-                      <Text
-                        style={[
-                          styles.partChangeItemStk,
-                          item.replaced && { color: colors.success },
-                        ]}
-                      >
-                        {item.partBatch.stkNumber}
-                      </Text>
-                      <Text style={styles.partChangeItemDetail}>
-                        Qty: {item.partBatch.quantity}
-                      </Text>
-                      {item.replaced && item.replacedWithStk && (
-                        <Text style={styles.replacedWithText}>
-                          Diganti: {item.replacedWithStk}
-                        </Text>
+              {partChangeItems.map((item, index) => {
+                const isSelected = selectedItemIndex === index;
+                return (
+                  <TouchableOpacity
+                    key={`${item.inventoryCode}-${index}`}
+                    activeOpacity={0.8}
+                    onPress={() => setSelectedItemIndex(isSelected ? null : index)}
+                    style={[
+                      styles.partChangeItem,
+                      item.replaced && styles.partChangeItemReplaced,
+                      isSelected && styles.partChangeItemSelected,
+                    ]}
+                  >
+                    <View style={styles.partChangeItemLeft}>
+                      {item.replaced ? (
+                        <CheckCircle2 color={colors.success} size={20} />
+                      ) : (
+                        <Package color={colors.textMuted} size={20} />
                       )}
+                      <View style={styles.partChangeItemInfo}>
+                        <Text
+                          style={[
+                            styles.partChangeItemStk,
+                            item.replaced && { color: colors.success },
+                          ]}
+                        >
+                          PDDM: {item.inventoryCode}
+                        </Text>
+                        <Text style={styles.partChangeItemDetail}>
+                          Part No: {item.partNumber}
+                        </Text>
+                        {item.replaced && item.replacedWithStk && (
+                          <Text style={styles.replacedWithText}>
+                            STK Baru: {item.replacedWithStk}
+                          </Text>
+                        )}
+                      </View>
                     </View>
-                  </View>
-                  {item.replaced && (
-                    <View style={styles.replacedBadge}>
-                      <Text style={styles.replacedBadgeText}>Done</Text>
-                    </View>
-                  )}
-                </View>
-              ))}
+                    {isSelected ? (
+                      <View style={styles.selectedBadge}>
+                        <Text style={styles.selectedBadgeText}>Pilihan</Text>
+                      </View>
+                    ) : item.replaced ? (
+                      <View style={styles.replacedBadge}>
+                        <Text style={styles.replacedBadgeText}>Diganti</Text>
+                      </View>
+                    ) : (
+                      <View style={styles.pendingBadge}>
+                        <Text style={styles.pendingBadgeText}>Pilih / Scan</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
             </ScrollView>
 
             {/* Bottom Bar */}
@@ -701,7 +738,7 @@ const PartChangingScreen: React.FC<Props> = ({ navigation }) => {
               <Button
                 title={`Finish (${replacedCount}/${partChangeItems.length})`}
                 onPress={handleFinish}
-                disabled={isSubmitting || replacedCount === 0}
+                disabled={replacedCount === 0 || isSubmitting}
                 isLoading={isSubmitting}
                 style={styles.bottomBtn}
               />
@@ -727,7 +764,7 @@ const PartChangingScreen: React.FC<Props> = ({ navigation }) => {
 
               <View style={styles.finishedSummary}>
                 <DetailRow label="Customer" value={orderData.customer.name} />
-                <DetailRow label="PCB Model" value={orderData.pcbModel.name} />
+                <DetailRow label="PCB Model" value={orderData.product?.name || '-'} />
                 <DetailRow label="Line" value={matchedDetail.line.name} />
                 <DetailRow label="Machine" value={matchedDetail.machine.name} />
                 <DetailRow label="Product" value={productSelect} />
@@ -923,9 +960,12 @@ const styles = StyleSheet.create({
     ...shadows.sm,
   },
   partChangeItemReplaced: {
-    backgroundColor: `${colors.success}10`,
     borderColor: colors.success,
     borderWidth: 1,
+  },
+  partChangeItemSelected: {
+    borderColor: colors.orange,
+    borderWidth: 2,
   },
   partChangeItemLeft: {
     flexDirection: 'row',
@@ -963,6 +1003,28 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.textInverse,
   },
+  selectedBadge: {
+    backgroundColor: colors.orange,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  selectedBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.textInverse,
+  },
+  pendingBadge: {
+    backgroundColor: colors.surfaceVariant,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  pendingBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: colors.textMuted,
+  },
 
   // Bottom Bar
   bottomBar: {
@@ -982,9 +1044,21 @@ const styles = StyleSheet.create({
   bottomBtn: { flex: 1, paddingVertical: 12 },
 
   // Button Row
-  buttonRow: { flexDirection: 'row', gap: 12, marginTop: 16 },
-  halfBtn: { flex: 1, paddingVertical: 12 },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 16,
+  },
 
+  scanBtn: {
+    flex: 1,
+    paddingVertical: 10,
+  },
+
+  submitBtn: {
+    flex: 2,
+    paddingVertical: 10,
+  },
   // Finished
   finishedScrollContent: { flexGrow: 1, justifyContent: 'center' },
   finishedContainer: { alignItems: 'center', padding: 32, paddingBottom: 40 },

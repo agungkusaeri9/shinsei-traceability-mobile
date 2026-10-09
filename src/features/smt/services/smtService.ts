@@ -20,15 +20,35 @@ export const fetchOrderByLotNumber = async (
   return response.data;
 };
 
-// ─── Fetch Orders with status=submitted ────────────────────────────────────
+// ─── Search Order Lots ──────────────────────────────────────────────────────
 
-export const fetchSubmittedOrders = async (): Promise<OrderSummary[]> => {
-  return fetchOrders({ status: 'SMT_REGISTER' });
+export interface OrderLotItem {
+  id?: number;
+  lotNumber: string;
+  customerName?: string;
+  productName?: string;
+  [key: string]: any;
+}
+
+export const searchOrderLots = async (
+  query: string = '',
+  page: number = 1,
+  limit: number = 20,
+): Promise<OrderLotItem[]> => {
+  const response = await httpClient.get<any>('/OrderLots/search', {
+    params: { q: query, page, limit },
+  });
+  if (Array.isArray(response.data)) {
+    return response.data;
+  }
+  if (response.data && Array.isArray(response.data.data)) {
+    return response.data.data;
+  }
+  if (response.data && response.data.items && Array.isArray(response.data.items)) {
+    return response.data.items;
+  }
+  return [];
 };
-
-// ─── Fetch Order by ID ────────────────────────────────────────────────────
-
-export { fetchOrderById } from '../../../services/orderService';
 
 // ─── Submit SMT ─────────────────────────────────────────────────────────────
 

@@ -37,6 +37,41 @@ export interface SmtMachine {
   updatedAt: string;
 }
 
+export interface SmtLocation {
+  id: number;
+  rack: string;
+  shelf: string;
+  bin: string;
+  position: string;
+  description: string;
+}
+
+export interface SmtPart {
+  id: number;
+  inventoryCode: string;
+  partNumber: string;
+  partName: string;
+  type: string;
+  qty: number;
+  locations: SmtLocation[] | null;
+  areas: any[] | null;
+  supplier: any | null;
+  customer: SmtCustomer | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SmtSupplier {
+  id: number;
+  code: string;
+  name: string;
+  address: string;
+  phone: string;
+  fax: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface SmtPartBatch {
   id: number;
   stkNumber: string;
@@ -44,9 +79,9 @@ export interface SmtPartBatch {
   quantity: number;
   status: string;
   moistureProof: boolean;
-  part: any | null;
+  part: SmtPart;
   maker: any | null;
-  supplier: any | null;
+  supplier: SmtSupplier | null;
   latestHistory: any | null;
   expiredDate: string;
   receivedDate: string;
@@ -54,18 +89,21 @@ export interface SmtPartBatch {
   updatedAt: string;
 }
 
+export interface SmtStkListItem {
+  stkNumber: string;
+  partNumber: string;
+}
+
 export interface SmtOrderDetail {
-  orderId: number;
-  poNumber: string;
+  inventoryCode: string;
   line: SmtLine;
   machine: SmtMachine;
-  partBatches: SmtPartBatch[];
+  stkList: SmtStkListItem[];
 }
 
 export interface SmtOrderData {
   customer: SmtCustomer;
   product: Product;
-  pcbModel: SmtPcbModel;
   pcbModelFace: string;
   details: SmtOrderDetail[];
 }
@@ -77,8 +115,8 @@ export interface SmtOrderResponse {
 }
 
 export interface SmtPayload {
-  orderId: number;
-  partBatchId: number;
+  lotNumber: string;
+  partBatchIds: number[];
   productSelect: string;
 }
 

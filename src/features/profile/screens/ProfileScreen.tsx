@@ -13,7 +13,7 @@ import ProfileHeader from '../components/ProfileHeader';
 import { useAuth } from '../../../hooks/useAuth';
 import Modal from '../../../components/Modal';
 import Button from '../../../components/Button';
-import { Cog, Info, User } from 'lucide-react-native/icons';
+import { Cog, Info, User } from 'lucide-react-native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 
 type Props = {
@@ -79,7 +79,7 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
               ]}
               activeOpacity={0.7}
             >
-              <Text style={styles.menuIcon}>{item.icon}</Text>
+              <View style={styles.menuIcon}>{item.icon}</View>
               <Text style={styles.menuLabel}>{item.label}</Text>
               <Text style={styles.menuArrow}>›</Text>
             </TouchableOpacity>

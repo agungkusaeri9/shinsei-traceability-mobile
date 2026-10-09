@@ -17,91 +17,104 @@ import SmtHeader from '../components/SmtHeader';
 import Button from '../../../components/Button';
 import SearchableDropdown from '../../warehouse/components/SearchableDropdown';
 import InfoBanner from '../../warehouse/components/InfoBanner';
-import { fetchSubmittedOrders, fetchOrderById, finishSmt } from '../services/smtService';
+import {
+  searchOrderLots,
+  fetchOrderByLotNumber,
+  finishSmt,
+  OrderLotItem,
+} from '../services/smtService';
 import { showSuccess, showError } from '../../../services/toastService';
-import type { Order, OrderSummary } from '../../warehouse/types';
+import type { SmtOrderData } from '../types';
 
 type Props = {
   navigation: NativeStackNavigationProp<SmtStackParamList, 'Finish'>;
 };
 
 const FinishScreen: React.FC<Props> = ({ navigation }) => {
-  const [orders, setOrders] = useState<OrderSummary[]>([]);
-  const [loadingOrders, setLoadingOrders] = useState(false);
+  const [orderLots, setOrderLots] = useState<OrderLotItem[]>([]);
+  const [loadingLots, setLoadingLots] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [selectedLotNumber, setSelectedLotNumber] = useState<string | null>(null);
+  const [smtOrderData, setSmtOrderData] = useState<SmtOrderData | null>(null);
   const [loadingOrderDetail, setLoadingOrderDetail] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
-  const loadSubmittedOrders = async () => {
-    setLoadingOrders(true);
+  const loadOrderLots = async () => {
+    setLoadingLots(true);
     try {
-      const data = await fetchSubmittedOrders();
-      setOrders(Array.isArray(data) ? data : []);
+      const data = await searchOrderLots('', 1, 20);
+      setOrderLots(Array.isArray(data) ? data : []);
     } catch (error: any) {
-      showError(error?.response?.data?.message || 'Gagal memuat data Order');
+      showError(error?.response?.data?.message || 'Gagal memuat data Order Lot');
     } finally {
-      setLoadingOrders(false);
+      setLoadingLots(false);
     }
   };
 
   useFocusEffect(
     useCallback(() => {
-      loadSubmittedOrders();
+      loadOrderLots();
     }, []),
   );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadSubmittedOrders();
+    await loadOrderLots();
     setRefreshing(false);
   }, []);
 
-  const orderDropdownOptions = orders.map(o => ({
-    id: String(o.id),
-    label: `${o.orderNumber} - ${o.customerName ?? 'N/A'} (Lot: ${o.lotNumber})`,
-  }));
+  const dropdownOptions = orderLots.map(item => {
+    const lot = item.lotNumber || String(item.id || '');
+    const meta = [item.customerName, item.productName].filter(Boolean).join(' - ');
+    return {
+      id: lot,
+      label: meta ? `${lot} (${meta})` : lot,
+    };
+  });
 
-  const handleSelectOrder = async (id: string) => {
-    const orderId = Number(id);
-    setSelectedOrderId(orderId);
-    setSelectedOrder(null);
+  const handleSelectLot = async (lotNumber: string) => {
+    setSelectedLotNumber(lotNumber);
+    setSmtOrderData(null);
 
     setLoadingOrderDetail(true);
     try {
-      const order = await fetchOrderById(orderId);
-      setSelectedOrder(order);
+      const response = await fetchOrderByLotNumber(lotNumber);
+      if (response.status && response.data) {
+        setSmtOrderData(response.data);
+      } else {
+        showError(response.message || 'Detail Order Lot tidak ditemukan');
+        setSelectedLotNumber(null);
+      }
     } catch (error: any) {
-      showError(error?.response?.data?.message || 'Gagal memuat detail Order');
-      setSelectedOrderId(null);
+      showError(error?.response?.data?.message || 'Gagal mengambil detail Order Lot');
+      setSelectedLotNumber(null);
     } finally {
       setLoadingOrderDetail(false);
     }
   };
 
-  const handleClearOrder = () => {
-    setSelectedOrderId(null);
-    setSelectedOrder(null);
+  const handleClearLot = () => {
+    setSelectedLotNumber(null);
+    setSmtOrderData(null);
   };
 
   const handleSubmitFinish = async () => {
-    if (!selectedOrder) {
-      showError('Pilih Order terlebih dahulu');
+    if (!selectedLotNumber || !smtOrderData) {
+      showError('Pilih Lot Number terlebih dahulu');
       return;
     }
 
     const payload = {
-      lotNumber: selectedOrder.lotNumber || '',
-      model: selectedOrder.product?.name || '',
-      customer: selectedOrder.customer?.name || '',
+      lotNumber: selectedLotNumber,
+      model: smtOrderData.product?.name || '',
+      customer: smtOrderData.customer?.name || '',
     };
 
     setIsSubmitting(true);
     try {
       await finishSmt(payload);
-      showSuccess(`Finish SMT ${selectedOrder.orderNumber} berhasil`, 'SMT Finish');
+      showSuccess(`Finish SMT Lot ${selectedLotNumber} berhasil`, 'SMT Finish');
       setIsSuccess(true);
     } catch (error: any) {
       showError(error?.response?.data?.message || 'Gagal menyelesaikan proses SMT Finish');
@@ -112,10 +125,18 @@ const FinishScreen: React.FC<Props> = ({ navigation }) => {
 
   const handleReset = () => {
     setIsSuccess(false);
-    setSelectedOrderId(null);
-    setSelectedOrder(null);
-    loadSubmittedOrders();
+    setSelectedLotNumber(null);
+    setSmtOrderData(null);
+    loadOrderLots();
   };
+
+  const lineNames = smtOrderData?.details
+    ? [...new Set(smtOrderData.details.map(d => d.line?.name).filter(Boolean))].join(', ')
+    : 'N/A';
+
+  const machineNames = smtOrderData?.details
+    ? [...new Set(smtOrderData.details.map(d => d.machine?.name).filter(Boolean))].join(', ')
+    : 'N/A';
 
   return (
     <View style={styles.container}>
@@ -151,7 +172,7 @@ const FinishScreen: React.FC<Props> = ({ navigation }) => {
             </View>
             <Text style={styles.finishedTitle}>SMT Finish Selesai!</Text>
             <Text style={styles.finishedSubtitle}>
-              Order {selectedOrder?.orderNumber} berhasil di-finish
+              Lot Number {selectedLotNumber} berhasil di-finish
             </Text>
 
             <Button
@@ -164,68 +185,46 @@ const FinishScreen: React.FC<Props> = ({ navigation }) => {
           <>
             <InfoBanner
               icon={<Factory color={colors.primary} size={20} />}
-              text="Pilih Order SMT Completed untuk melakukan konfirmasi & finish SMT"
+              text="Cari / pilih Lot Number untuk melakukan konfirmasi & finish SMT"
               bgColor={`${colors.primary}12`}
             />
 
-            {loadingOrders ? (
+            {loadingLots ? (
               <View style={styles.loadingField}>
                 <ActivityIndicator size="small" color={colors.primary} />
-                <Text style={styles.loadingText}>Memuat data Order submitted...</Text>
+                <Text style={styles.loadingText}>Memuat data Order Lot...</Text>
               </View>
             ) : (
               <SearchableDropdown
-                options={orderDropdownOptions}
-                selectedValue={selectedOrderId ? String(selectedOrderId) : ''}
-                onSelect={handleSelectOrder}
-                onClear={handleClearOrder}
-                label="Order"
-                placeholder="Cari atau pilih Order..."
+                options={dropdownOptions}
+                selectedValue={selectedLotNumber || ''}
+                onSelect={handleSelectLot}
+                onClear={handleClearLot}
+                label="Lot Number"
+                placeholder="Cari atau pilih Lot Number..."
               />
             )}
 
             {loadingOrderDetail && (
               <View style={styles.loadingField}>
                 <ActivityIndicator size="small" color={colors.primary} />
-                <Text style={styles.loadingText}>Memuat detail Order...</Text>
+                <Text style={styles.loadingText}>Memuat detail Order Lot...</Text>
               </View>
             )}
 
-            {selectedOrder && !loadingOrderDetail && (
-              <View style={styles.confirmationCard}>
-                <Text style={styles.cardTitle}>Konfirmasi Data Order</Text>
+            {smtOrderData && !loadingOrderDetail && selectedLotNumber && (
+              <>
+                <View style={styles.confirmationCard}>
+                  <Text style={styles.cardTitle}>Konfirmasi Data Order Lot</Text>
 
-                <DetailRow label="Order Number" value={selectedOrder.orderNumber} />
-                <DetailRow label="PO Number" value={selectedOrder.poNumber} />
-                <DetailRow label="Lot Number" value={selectedOrder.lotNumber} />
-                <DetailRow label="Customer" value={selectedOrder.customer?.name ?? '-'} />
-                <DetailRow label="Model" value={selectedOrder.product?.name ?? '-'} />
-                <DetailRow label="Face" value={selectedOrder.pcbModelFace ?? '-'} />
-                <DetailRow
-                  label="Machine"
-                  value={
-                    [
-                      ...new Set(
-                        selectedOrder.orderItems
-                          ?.map(item => item.machine?.name)
-                          .filter(Boolean)
-                      ),
-                    ].join(', ') || 'N/A'
-                  }
-                />
-                <DetailRow
-                  label="Line"
-                  value={
-                    [
-                      ...new Set(
-                        selectedOrder.orderItems
-                          ?.map(item => item.line?.name)
-                          .filter(Boolean)
-                      ),
-                    ].join(', ') || 'N/A'
-                  }
-                />
+                  <DetailRow label="Lot Number" value={selectedLotNumber} />
+                  <DetailRow label="Customer" value={smtOrderData.customer?.name ?? '-'} />
+                  <DetailRow label="Model" value={smtOrderData.product?.name ?? '-'} />
+                  <DetailRow label="Face" value={smtOrderData.pcbModelFace ?? '-'} />
+                  <DetailRow label="Line" value={lineNames || 'N/A'} />
+                  <DetailRow label="Machine" value={machineNames || 'N/A'} />
 
+                </View>
                 <Button
                   title="Submit Finish SMT"
                   onPress={handleSubmitFinish}
@@ -233,7 +232,7 @@ const FinishScreen: React.FC<Props> = ({ navigation }) => {
                   disabled={isSubmitting}
                   style={styles.submitBtn}
                 />
-              </View>
+              </>
             )}
           </>
         )}

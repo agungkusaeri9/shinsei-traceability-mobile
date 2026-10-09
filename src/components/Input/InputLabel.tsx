@@ -12,6 +12,7 @@ interface InputLabelProps extends TextInputProps {
     label?: string;
     error?: string;
     leftIcon?: React.ReactNode;
+    rightIcon?: React.ReactNode;
     containerStyle?: ViewStyle;
 }
 
@@ -19,6 +20,7 @@ const InputLabel: React.FC<InputLabelProps> = ({
     label,
     error,
     leftIcon,
+    rightIcon,
     containerStyle,
     ...props
 }) => {
@@ -47,6 +49,7 @@ const InputLabel: React.FC<InputLabelProps> = ({
                     onFocus={() => setFocused(true)}
                     onBlur={() => setFocused(false)}
                 />
+                {rightIcon && <View style={styles.rightIconContainer}>{rightIcon}</View>}
             </View>
 
             {error && <Text style={styles.error}>{error}</Text>}
@@ -94,6 +97,10 @@ const styles = StyleSheet.create({
 
     iconContainer: {
         marginRight: 12,
+    },
+
+    rightIconContainer: {
+        marginLeft: 8,
     },
 
     input: {

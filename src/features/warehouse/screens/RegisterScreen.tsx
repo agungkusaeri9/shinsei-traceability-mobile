@@ -95,7 +95,7 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
         subtitle="Daftarkan part masuk"
         icon={<ClipboardList color={colors.primary} size={18} />}
         iconBgColor={`${colors.primary}25`}
-        onBack={() => navigation.navigate('WarehouseHome')}
+        onBack={() => navigation.goBack()}
       />
 
       <KeyboardAvoidingView
@@ -235,7 +235,7 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
             <Button
               title="Batal"
               variant="outline"
-              onPress={() => navigation.navigate('WarehouseHome')}
+              onPress={() => navigation.goBack()}
               style={styles.halfBtn}
             />
             <Button

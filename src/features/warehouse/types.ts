@@ -36,23 +36,98 @@ export interface Maker {
 
 // ─── Part Acceptance (Register Warehouse) ──────────────────────────────────
 
+export interface PartLocation {
+  id: number;
+  rack: string;
+  shelf: string;
+  bin: string;
+  position: string;
+  description: string;
+  qty: number;
+}
+
+export interface PartSupplierCustomer {
+  id: number;
+  code: string | null;
+  name: string;
+  address: string | null;
+  phone: string | null;
+  fax: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PartSearchResult {
+  id: number;
+  inventoryCode?: string;
+  partNumber?: string;
+  partName?: string;
+  name?: string;
+  code?: string;
+  type?: string;
+  qty?: number;
+  locations?: PartLocation[];
+  supplier?: PartSupplierCustomer;
+  customer?: PartSupplierCustomer;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AreaItem {
+  id: number;
+  name: string;
+  description?: string;
+}
+
+export interface CustomerItem {
+  id: number;
+  name: string;
+  code?: string;
+}
+
+export interface CreatePartAcceptancePayload {
+  inventoryCode: string;
+  quantity: number;
+  supplierId: number;
+  customerId: number;
+  expiredDate: string;
+  areaId?: number;
+  pddm: string;
+  rak: string;
+  partNo: string;
+}
+
 export interface PartAcceptancePayload {
   partNumber: string;
   lotNumber: string;
   quantity: number;
   makerId: number;
   supplierId: number;
-  expiredDate: string; // ISO 8601
+  expiredDate: string;
+}
+
+export interface PartAcceptanceItem {
+  id: number;
+  stkNumber: string;
+  qty: number;
+  supplierName?: string;
+  customerName?: string;
+  workerName?: string;
+  inventoryCode: string;
+  partNumber: string;
+  partName: string;
+  receivedDate: string;
+  expiredDate: string;
+  areaId: number;
+  areaName: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface PartAcceptanceResponse {
-  id: number;
-  partNumber: string;
-  lotNumber: string;
-  quantity: number;
-  makerId: number;
-  supplierId: number;
-  expiredDate: string;
+  status: boolean;
+  message: string;
+  data: PartAcceptanceItem;
 }
 
 // ─── Stock In ──────────────────────────────────────────────────────────────
@@ -145,6 +220,22 @@ export interface OrderItem {
   updatedAt?: string;
 }
 
+// ─── Part Availability (new API response) ────────────────────────────────
+
+export interface AvailablePart {
+  stkNumber: string;
+  partId: number;
+  partNumber: string;
+  stkCount: number;
+}
+
+export interface MissingPart {
+  stkNumber: string | null;
+  partId: number;
+  partNumber: string;
+  stkCount: number;
+}
+
 export interface Order {
   id: number;
   poNumber: string;
@@ -157,7 +248,14 @@ export interface Order {
   date: string;
   orderType: string;
   status: string;
+  availableParts: AvailablePart[];
+  missingParts: MissingPart[];
   orderItems: OrderItem[];
+  materialFeedings: any[];
+  updatedBy: string | null;
+  updatedByUser: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface OrderResponse {
@@ -173,6 +271,7 @@ export interface Product {
   description?: string;
   customerId?: number;
   customerName?: string;
+  parts?: any[];
   createdAt?: string;
   updatedAt?: string;
 }
@@ -196,6 +295,8 @@ export interface StkSupplier {
   address: string | null;
   phone: string | null;
   fax: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface StkCustomer {
@@ -205,6 +306,8 @@ export interface StkCustomer {
   address: string | null;
   phone: string | null;
   fax: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface StkPart {
@@ -212,9 +315,13 @@ export interface StkPart {
   inventoryCode: string;
   partNumber: string;
   partName: string;
+  type: string;
+  qty: number;
   locations?: StkLocation[];
   supplier?: StkSupplier;
   customer?: StkCustomer;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface StkData {
@@ -224,13 +331,21 @@ export interface StkData {
   quantity: number;
   status: string;
   moistureProof: boolean;
-  part: StkPart | null;
+  part: StkPart;
   maker: any | null;
   latestHistory: string | null;
+  stockInLocation: StockInLocation;
   expiredDate: string;
   receivedDate: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface StockInLocation {
+  rack: string;
+  shelf: string;
+  bin: string;
+  position: string;
 }
 
 export interface StkResponse {

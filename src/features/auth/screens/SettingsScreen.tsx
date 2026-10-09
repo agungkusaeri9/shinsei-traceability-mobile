@@ -7,14 +7,13 @@ import {
   Platform,
   StatusBar,
   ScrollView,
-  ToastAndroid,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '../../../types';
 import Input from '../../../components/Input';
 import Button from '../../../components/Button';
-import { getBaseUrl, setBaseUrl } from '../../../utils/baseUrl';
+import { getBaseUrl, setBaseUrl, formatUrl } from '../../../utils/baseUrl';
 import { updateBaseUrl } from '../../../services/httpClient';
 import { useConfig } from '../../../hooks/useConfig';
 import { showError, showSuccess } from '../../../services/toastService';
@@ -26,9 +25,9 @@ type Props = {
 const SettingsScreen: React.FC<Props> = ({ navigation }) => {
   const [baseUrl, setBaseUrlInput] = useState('');
   const [isTesting, setIsTesting] = useState(false);
-  const [isTestingSuccess, setIsTestingSuccess] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const { testPing } = useConfig();
+
   useEffect(() => {
     const loadBaseUrl = async () => {
       const url = await getBaseUrl();
@@ -45,16 +44,17 @@ const SettingsScreen: React.FC<Props> = ({ navigation }) => {
 
     setIsTesting(true);
     try {
-      const isValid = await testPing(baseUrl);
-      if (isValid) {
-        setIsTestingSuccess(false);
-        showSuccess('Base URL valid');
+      const formatted = formatUrl(baseUrl);
+      setBaseUrlInput(formatted);
+
+      const result = await testPing(formatted);
+      if (result.success) {
+        showSuccess(result.message || 'Base URL valid & server merespon!');
       } else {
-        showError('Base URL tidak valid');
-        setIsTestingSuccess(true);
+        showError(result.message || 'Base URL tidak dapat dijangkau');
       }
     } catch (error: any) {
-      showError('Terjadi kesalahan saat mengetes Base URL' + (error?.message || ''));
+      showError('Gagal koneksi: ' + (error?.message || 'Error tidak diketahui'));
     } finally {
       setIsTesting(false);
     }
@@ -68,12 +68,14 @@ const SettingsScreen: React.FC<Props> = ({ navigation }) => {
 
     setIsSaving(true);
     try {
-      await setBaseUrl(baseUrl);
-      updateBaseUrl(baseUrl);
+      const formatted = formatUrl(baseUrl);
+      setBaseUrlInput(formatted);
+      await setBaseUrl(formatted);
+      updateBaseUrl(formatted);
       showSuccess('Base URL berhasil disimpan');
       navigation.goBack();
     } catch (error: any) {
-      showError('Terjadi kesalahan saat menyimpan Base URL' + (error?.message || ''));
+      showError('Terjadi kesalahan saat menyimpan: ' + (error?.message || ''));
     } finally {
       setIsSaving(false);
     }
@@ -86,14 +88,10 @@ const SettingsScreen: React.FC<Props> = ({ navigation }) => {
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScrollView contentContainerStyle={styles.scrollContent}>
-          {/* <View style={styles.header}>
-            <Text style={styles.title}>Pengaturan</Text>
-          </View> */}
-
           <View style={styles.formContainer}>
-            <Text style={styles.label}>Base URL</Text>
+            <Text style={styles.label}>Base URL API</Text>
             <Input
-              placeholder="Masukkan base URL API"
+              placeholder="Contoh: 192.168.1.50:5051"
               value={baseUrl}
               onChangeText={setBaseUrlInput}
               autoCapitalize="none"
@@ -115,7 +113,6 @@ const SettingsScreen: React.FC<Props> = ({ navigation }) => {
                   title="Simpan"
                   onPress={handleSave}
                   isLoading={isSaving}
-                  disabled={isTestingSuccess}
                   style={styles.saveButton}
                 />
               </View>
@@ -140,14 +137,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 20,
   },
-  header: {
-    marginBottom: 32,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
   formContainer: {
     width: '100%',
   },
@@ -160,15 +149,9 @@ const styles = StyleSheet.create({
   buttonContainer: {
     flexDirection: 'row',
     gap: 12,
-    // backgroundColor: 'red',
   },
   buttonWrapper: {
     flex: 1,
-  },
-
-  button: {
-    flex: 1,
-    backgroundColor: 'yellow',
   },
   saveButton: {
     marginTop: 0,

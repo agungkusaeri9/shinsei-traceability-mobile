@@ -15,6 +15,7 @@ import {
   Package,
   Cpu,
   Clock,
+  ClipboardCheck,
 } from 'lucide-react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
@@ -212,6 +213,23 @@ const WarehouseScreen: React.FC<Props> = ({ navigation }) => {
             </View>
             <Text style={styles.actionTitle}>Stock Out</Text>
             <Text style={styles.actionDesc}>Proses keluar</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            activeOpacity={0.7}
+            style={[styles.actionCard, { borderColor: `${colors.primary}30` }]}
+            onPress={() => navigation.navigate('PartAcceptance')}
+          >
+            <View
+              style={[
+                styles.actionIconBadge,
+                { backgroundColor: `${colors.primary}20` },
+              ]}
+            >
+              <ClipboardCheck color={colors.primary} size={28} />
+            </View>
+            <Text style={styles.actionTitle}>Part Acceptance</Text>
+            <Text style={styles.actionDesc}>Terima part</Text>
           </TouchableOpacity>
         </View>
 

@@ -8,8 +8,8 @@ export const useLogin = () => {
   const { setAuth, isLoading, setLoading } = useAuth();
 
   const [form, setForm] = useState<LoginFormValues>({
-    username: 'testsmt',
-    password: 'password',
+    username: '', // 'superadmin'
+    password: '', // 'password'
   });
 
   const [errors, setErrors] = useState<LoginFormErrors>({});

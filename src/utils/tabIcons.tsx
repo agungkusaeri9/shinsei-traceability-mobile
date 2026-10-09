@@ -8,6 +8,8 @@ import {
   ArrowDownToLine,
   ArrowUpFromLine,
   CircuitBoard,
+  ShieldCheck,
+  Truck,
 } from 'lucide-react-native';
 
 interface TabIconProps {
@@ -45,4 +47,12 @@ export const StockOutIcon = ({ color, size }: TabIconProps) => (
 
 export const SmtTabIcon = ({ color, size }: TabIconProps) => (
   <CircuitBoard color={color} size={size} />
+);
+
+export const QaAssyTabIcon = ({ color, size }: TabIconProps) => (
+  <ShieldCheck color={color} size={size} />
+);
+
+export const DeliveryTabIcon = ({ color, size }: TabIconProps) => (
+  <Truck color={color} size={size} />
 );

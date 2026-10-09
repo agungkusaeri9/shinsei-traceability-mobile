@@ -1,23 +1,22 @@
 import { useState } from 'react';
-
 import { getBaseUrl, setBaseUrl } from '../utils/baseUrl';
 import { updateBaseUrl } from '../services/httpClient';
-import { testPingService } from '../services/configService';
+import { testPingService, PingResult } from '../services/configService';
 
 export const useConfig = () => {
   const [isLoading, setIsLoading] = useState(false);
 
-  const testPing = async (url: string): Promise<boolean> => {
+  const testPing = async (url: string): Promise<PingResult> => {
     if (!url.trim()) {
-      return false;
+      return { success: false, message: 'URL tidak boleh kosong' };
     }
 
     setIsLoading(true);
 
     try {
       return await testPingService(url);
-    } catch {
-      return false;
+    } catch (error: any) {
+      return { success: false, message: error?.message || 'Gagal mengecek ping' };
     } finally {
       setIsLoading(false);
     }

@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -14,7 +15,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '../../../types';
 import LoginForm from '../components/LoginForm';
 import { useLogin } from '../hooks/useLogin';
-import { Lock, Settings } from 'lucide-react-native/icons';
+import { Lock, Settings, TriangleAlert } from 'lucide-react-native';
+import { isBaseUrlSet } from '../../../utils/baseUrl';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Login'>;
@@ -22,6 +24,13 @@ type Props = {
 
 const LoginScreen: React.FC<Props> = ({ navigation }) => {
   const { form, errors, isLoading, handleChange, handleLogin } = useLogin();
+  const [urlNotSet, setUrlNotSet] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      isBaseUrlSet().then(ok => setUrlNotSet(!ok));
+    }, [])
+  );
 
   const onSubmit = async () => {
     await handleLogin();
@@ -40,9 +49,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
           <TouchableOpacity
             style={styles.settingsButton}
             onPress={() => navigation.navigate('Settings')}>
-            <Text style={styles.settingsIcon}>
-              <Settings size={18} color="#666" />
-            </Text>
+            <Settings size={20} color="#666" />
           </TouchableOpacity>
         </View>
 
@@ -57,7 +64,16 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
           </View>
 
           <View style={styles.formContainer}>
-
+            {urlNotSet && (
+              <TouchableOpacity
+                style={styles.warningBanner}
+                onPress={() => navigation.navigate('Settings')}>
+                <TriangleAlert size={16} color="#92400E" />
+                <Text style={styles.warningText}>
+                  Server URL belum diset. Tap untuk buka Settings.
+                </Text>
+              </TouchableOpacity>
+            )}
             <LoginForm
               form={form}
               errors={errors}
@@ -145,6 +161,23 @@ const styles = StyleSheet.create({
   },
   formContainer: {
     width: '100%',
+  },
+  warningBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+    borderColor: '#F59E0B',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 16,
+    gap: 8,
+  },
+  warningText: {
+    fontSize: 13,
+    color: '#92400E',
+    flex: 1,
+    flexWrap: 'wrap',
   },
   welcomeText: {
     fontSize: 24,

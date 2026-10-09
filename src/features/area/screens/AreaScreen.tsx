@@ -63,23 +63,25 @@ const AreaScreen: React.FC<Props> = ({ navigation }) => {
     {
       id: '3',
       name: 'Assembly & QA',
-      description: 'Assembly dan Quality Assurance',
-      icon: <Settings color="#9CA3AF" size={28} />,
-      available: false,
+      description: 'Kelola process QA, Add Part, dan Finish QA & Assy',
+      icon: <Settings color={colors.primary} size={28} />,
+      available: true,
+      onPress: () => navigation.navigate('QaAssyHome'),
     },
+    // {
+    //   id: '4',
+    //   name: 'FG Warehouse',
+    //   description: 'Finished Goods Warehouse',
+    //   icon: <Package color="#9CA3AF" size={28} />,
+    //   available: false,
+    // },
     {
       id: '4',
-      name: 'FG Warehouse',
-      description: 'Finished Goods Warehouse',
-      icon: <Package color="#9CA3AF" size={28} />,
-      available: false,
-    },
-    {
-      id: '5',
       name: 'Delivery',
-      description: 'Pengiriman dan distribusi',
-      icon: <Truck color="#9CA3AF" size={28} />,
-      available: false,
+      description: 'Pengiriman dan distribusi box',
+      icon: <Truck color={colors.primary} size={28} />,
+      available: true,
+      onPress: () => navigation.navigate('DeliveryHome'),
     },
   ];
 

@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, RefreshControl } from 'react-native';
-import { ArrowDownToLine, ArrowUpFromLine, TrendingUp } from 'lucide-react-native';
+import { ArrowDownToLine, ArrowUpFromLine, ClipboardCheck, TrendingUp } from 'lucide-react-native';
 
 import { colors } from '../../../theme';
 import DashboardHeader from '../components/DashboardHeader';
@@ -103,6 +103,12 @@ const WarehouseDashboard: React.FC<Props> = ({
       {/* ── Quick Actions ────────────────────────────── */}
       <Text style={styles.sectionTitle}>Quick Actions</Text>
       <View style={styles.statsRow}>
+        <QuickActionCard
+          title="Part Acceptance"
+          color={colors.primary}
+          icon={<ClipboardCheck color={colors.primary} size={22} />}
+          onPress={() => navigateToWarehouseScreen(navigation, 'PartAcceptance')}
+        />
         <QuickActionCard
           title="Stock In"
           color={colors.success}

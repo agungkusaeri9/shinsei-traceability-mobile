@@ -49,6 +49,7 @@ import { RegisteredPart } from '../features/warehouse/types';
 export type WarehouseStackParamList = {
   WarehouseHome: undefined;
   Register: undefined;
+  PartAcceptance: undefined;
   StockIn: { registeredData?: RegisteredPart } | undefined;
   StockOut: undefined;
 };
@@ -57,6 +58,7 @@ export type AreaStackParamList = {
   AreaHome: undefined;
   WarehouseDashboard: undefined;
   Register: undefined;
+  PartAcceptance: undefined;
   StockIn: { registeredData?: RegisteredPart } | undefined;
   StockOut: undefined;
   SmtDashboard: undefined;
@@ -64,6 +66,15 @@ export type AreaStackParamList = {
   PartRegister: undefined;
   PartChanging: undefined;
   Finish: undefined;
+  QaAssyHome: undefined;
+  QaRegister: undefined;
+  QaAddPart: undefined;
+  QaFinish: undefined;
+  DeliveryHome: undefined;
+};
+
+export type DeliveryStackParamList = {
+  DeliveryHome: undefined;
 };
 
 export type SmtStackParamList = {
@@ -73,6 +84,13 @@ export type SmtStackParamList = {
   Finish: undefined;
 };
 
+export type QaAssyStackParamList = {
+  QaAssyHome: undefined;
+  QaRegister: undefined;
+  QaAddPart: undefined;
+  QaFinish: undefined;
+};
+
 import { NavigatorScreenParams } from '@react-navigation/native';
 
 export type AppTabParamList = {
@@ -80,6 +98,8 @@ export type AppTabParamList = {
   Area: NavigatorScreenParams<AreaStackParamList> | undefined;
   Warehouse: NavigatorScreenParams<WarehouseStackParamList> | undefined;
   SMT: NavigatorScreenParams<SmtStackParamList> | undefined;
+  QAAssy: NavigatorScreenParams<QaAssyStackParamList> | undefined;
+  Delivery: NavigatorScreenParams<DeliveryStackParamList> | undefined;
   Profile: undefined;
 };
 
