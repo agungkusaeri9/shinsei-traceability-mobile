@@ -10,6 +10,7 @@ import {
   getExpiredDateTwoWeeks,
 } from '../services/warehouseService';
 import { showSuccess, showError } from '../../../services/toastService';
+import { getErrorMessage } from '../../../utils/errorMessage';
 
 export const useRegisterWarehouse = () => {
   // ─── Form State ───────────────────────────────────────────────────────────
@@ -81,7 +82,7 @@ export const useRegisterWarehouse = () => {
       const data = await fetchSuppliers();
       setSuppliers(Array.isArray(data) ? data : []);
     } catch (error: any) {
-      showError(error?.response?.data?.message || 'Gagal memuat data supplier');
+      showError(getErrorMessage(error, 'Gagal memuat data supplier'));
     } finally {
       setLoadingSuppliers(false);
     }
@@ -93,7 +94,7 @@ export const useRegisterWarehouse = () => {
       const data = await fetchMakers();
       setMakers(Array.isArray(data) ? data : []);
     } catch (error: any) {
-      showError(error?.response?.data?.message || 'Gagal memuat data maker');
+      showError(getErrorMessage(error, 'Gagal memuat data maker'));
     } finally {
       setLoadingMakers(false);
     }
@@ -246,8 +247,7 @@ export const useRegisterWarehouse = () => {
       setShowMasterDataModal(false);
     } catch (error: any) {
       showError(
-        error?.response?.data?.message ||
-          `Gagal membuat data ${masterDataType}`,
+        getErrorMessage(error, `Gagal membuat data ${masterDataType}`),
       );
     }
   }, [masterDataType, masterDataName]);
@@ -307,7 +307,7 @@ export const useRegisterWarehouse = () => {
       // Reset form
       resetForm();
     } catch (error: any) {
-      const msg = error?.response?.data?.message || 'Gagal mendaftarkan part';
+      const msg = getErrorMessage(error, 'Gagal mendaftarkan part');
       showError(msg);
     } finally {
       setSubmitting(false);

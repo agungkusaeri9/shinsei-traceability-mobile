@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { PackageCheck, MapPin, Calendar, Building2, Package } from 'lucide-react-native';
 import { colors, shadows } from '../../../theme';
-import { RecentAcceptanceItem } from '../services/dashboardService';
+import { RecentAcceptanceItem } from '../types';
 
 interface Props {
   data: RecentAcceptanceItem[];

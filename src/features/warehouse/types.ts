@@ -384,3 +384,18 @@ export interface MaterialFeedingResponse {
   orderId: number;
   processedDate: string;
 }
+
+// ─── Order Query Params ─────────────────────────────────────────────────────
+
+export type OrderStatus =
+  | 'created'
+  | 'submitted'
+  | 'processing'
+  | 'finished'
+  | 'completed'
+  | string;
+
+export interface FetchOrdersParams {
+  status?: OrderStatus;
+  [key: string]: any;
+}

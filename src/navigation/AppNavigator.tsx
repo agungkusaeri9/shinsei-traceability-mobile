@@ -12,6 +12,7 @@ import {
   SmtStackParamList,
   QaAssyStackParamList,
   DeliveryStackParamList,
+  ProfileStackParamList,
 } from '../types';
 import { useAuth } from '../hooks/useAuth';
 import AreaScreen from '../features/area/screens/AreaScreen';
@@ -40,6 +41,8 @@ import {
 import SmtDashboard from '../features/dashboard/screens/SmtDashboard';
 import SmtHomeScreen from '../features/smt/screens/SmtHomeScreen';
 import DeliveryScreen from '../features/delivery/screens/DeliveryScreen';
+import SettingsScreen from '../features/auth/screens/SettingsScreen';
+import SettingsHomeScreen from '../features/profile/screens/SettingsHomeScreen';
 
 const Tab = createBottomTabNavigator<AppTabParamList>();
 const WarehouseStack = createNativeStackNavigator<WarehouseStackParamList>();
@@ -47,6 +50,7 @@ const AreaStack = createNativeStackNavigator<AreaStackParamList>();
 const SmtStack = createNativeStackNavigator<SmtStackParamList>();
 const QaAssyStack = createNativeStackNavigator<QaAssyStackParamList>();
 const DeliveryStack = createNativeStackNavigator<DeliveryStackParamList>();
+const ProfileStack = createNativeStackNavigator<ProfileStackParamList>();
 
 const HIDDEN_TAB = { tabBarItemStyle: { display: 'none' as const } };
 
@@ -115,6 +119,42 @@ function DeliveryNavigator() {
     <DeliveryStack.Navigator screenOptions={{ headerShown: false }}>
       <DeliveryStack.Screen name="DeliveryHome" component={DeliveryScreen} />
     </DeliveryStack.Navigator>
+  );
+}
+
+function ProfileNavigator() {
+  return (
+    <ProfileStack.Navigator
+      screenOptions={{
+        headerTitleAlign: 'center',
+      }}
+    >
+      <ProfileStack.Screen
+        name="ProfileHome"
+        component={ProfileScreen}
+        options={{
+          title: 'Profile',
+          headerShown: true,
+        }}
+      />
+      <ProfileStack.Screen
+        name="Settings"
+        component={SettingsHomeScreen}
+        options={{
+          title: 'Pengaturan',
+          headerShown: true,
+        }}
+      />
+      <ProfileStack.Screen
+        name="ChangeIPAddress"
+        component={SettingsScreen}
+        options={{
+          title: 'Change IP Address',
+          headerShown: true,
+          headerBackTitle: 'Kembali',
+        }}
+      />
+    </ProfileStack.Navigator>
   );
 }
 
@@ -205,13 +245,11 @@ const AppNavigator: React.FC = () => {
 
       <Tab.Screen
         name="Profile"
-        component={ProfileScreen}
+        component={ProfileNavigator}
         options={{
           title: 'Profile',
           tabBarIcon: ProfileIcon,
-          headerShown: true,
-          headerTitle: 'Profile',
-          headerTitleAlign: 'center',
+          headerShown: false,
         }}
       />
     </Tab.Navigator>

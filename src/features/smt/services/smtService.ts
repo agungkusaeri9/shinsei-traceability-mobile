@@ -1,13 +1,14 @@
 import httpClient from '../../../services/httpClient';
 import { API_ENDPOINTS } from '../../../services/api';
-import { fetchOrders } from '../../../services/orderService';
 import type {
+  OrderLotItem,
+  OrderLotSearchResponse,
   SmtFinishPayload,
+  SmtFinishResponse,
   SmtOrderResponse,
   SmtPayload,
   SmtResponse,
 } from '../types';
-import type { Order, OrderSummary } from '../../warehouse/types';
 
 // ─── Fetch Order by Lot Number ──────────────────────────────────────────────
 
@@ -22,32 +23,22 @@ export const fetchOrderByLotNumber = async (
 
 // ─── Search Order Lots ──────────────────────────────────────────────────────
 
-export interface OrderLotItem {
-  id?: number;
-  lotNumber: string;
-  customerName?: string;
-  productName?: string;
-  [key: string]: any;
-}
-
 export const searchOrderLots = async (
   query: string = '',
   page: number = 1,
   limit: number = 20,
 ): Promise<OrderLotItem[]> => {
-  const response = await httpClient.get<any>('/OrderLots/search', {
-    params: { q: query, page, limit },
-  });
-  if (Array.isArray(response.data)) {
-    return response.data;
+  const response = await httpClient.get<OrderLotSearchResponse | OrderLotItem[]>(
+    API_ENDPOINTS.ORDER_LOTS_SEARCH,
+    {
+      params: { q: query, page, limit },
+    },
+  );
+  const payload = response.data;
+  if (Array.isArray(payload)) {
+    return payload;
   }
-  if (response.data && Array.isArray(response.data.data)) {
-    return response.data.data;
-  }
-  if (response.data && response.data.items && Array.isArray(response.data.items)) {
-    return response.data.items;
-  }
-  return [];
+  return Array.isArray(payload?.data) ? payload.data : [];
 };
 
 // ─── Submit SMT ─────────────────────────────────────────────────────────────
@@ -62,7 +53,12 @@ export const submitSmt = async (data: SmtPayload): Promise<SmtResponse> => {
 
 // ─── Finish SMT ────────────────────────────────────────────────────────────
 
-export const finishSmt = async (data: SmtFinishPayload): Promise<any> => {
-  const response = await httpClient.post(API_ENDPOINTS.SMTS_FINISH, data);
+export const finishSmt = async (
+  data: SmtFinishPayload,
+): Promise<SmtFinishResponse> => {
+  const response = await httpClient.post<SmtFinishResponse>(
+    API_ENDPOINTS.SMTS_FINISH,
+    data,
+  );
   return response.data;
 };

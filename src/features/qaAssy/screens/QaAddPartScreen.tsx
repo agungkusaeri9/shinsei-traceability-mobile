@@ -23,8 +23,10 @@ import QaAssyHeader from '../components/QaAssyHeader';
 import ScanZone from '../components/ScanZone';
 import Button from '../../../components/Button';
 import { submitQaAddPart } from '../services/qaAssyService';
+import { fetchOrderByLotNumber } from '../../smt/services/smtService';
 import { showSuccess, showError } from '../../../services/toastService';
 import { extractStkNumber } from '../../../utils/barcode';
+import { getErrorMessage } from '../../../utils/errorMessage';
 
 type Props = {
   navigation: NativeStackNavigationProp<QaAssyStackParamList, 'QaAddPart'>;
@@ -32,9 +34,11 @@ type Props = {
 
 const QaAddPartScreen: React.FC<Props> = ({ navigation }) => {
   const barcodeRef = useRef<TextInput>(null);
+  const inputValueRef = useRef('');
   const [scanBuffer, setScanBuffer] = useState('');
   const [scannedLot, setScannedLot] = useState('');
   const [stkList, setStkList] = useState<string[]>([]);
+  const [isCheckingLot, setIsCheckingLot] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const focusScanner = useCallback(() => {
@@ -48,23 +52,39 @@ const QaAddPartScreen: React.FC<Props> = ({ navigation }) => {
     }, [focusScanner]),
   );
 
-  const handleScanSubmit = () => {
-    const raw = scanBuffer.trim();
-    setScanBuffer('');
+  const handleScanSubmit = async (rawValue: string) => {
+    const raw = rawValue.trim();
     if (!raw) return;
 
     if (!scannedLot) {
+      if (isCheckingLot) return;
       const cleanLot = extractStkNumber(raw);
-      setScannedLot(cleanLot);
-      showSuccess('Lot berhasil di-scan: ' + cleanLot, 'Lot Terscan');
-    } else {
-      const cleanStk = extractStkNumber(raw);
-      if (stkList.includes(cleanStk)) {
-        showError('Part STK sudah pernah di-scan: ' + cleanStk);
-      } else {
-        setStkList(prev => [...prev, cleanStk]);
-        showSuccess('Part STK ditambahkan: ' + cleanStk, 'STK Terscan');
+
+      // Cek dulu keberadaan lot number ke /orders/lot/{lot_number}
+      setIsCheckingLot(true);
+      try {
+        const res = await fetchOrderByLotNumber(cleanLot);
+        if (res.status && res.data) {
+          setScannedLot(cleanLot);
+          showSuccess('Lot ditemukan: ' + cleanLot, 'Lot Terverifikasi');
+        } else {
+          showError(res.message || 'Lot number tidak ditemukan');
+        }
+      } catch (error) {
+        showError(getErrorMessage(error, 'Lot number tidak ditemukan'));
+      } finally {
+        setIsCheckingLot(false);
+        focusScanner();
       }
+      return;
+    }
+
+    const cleanStk = extractStkNumber(raw);
+    if (stkList.includes(cleanStk)) {
+      showError('Part STK sudah pernah di-scan: ' + cleanStk);
+    } else {
+      setStkList(prev => [...prev, cleanStk]);
+      showSuccess('Part STK ditambahkan: ' + cleanStk, 'STK Terscan');
     }
     focusScanner();
   };
@@ -92,13 +112,14 @@ const QaAddPartScreen: React.FC<Props> = ({ navigation }) => {
       showSuccess(res.message, 'Part Berhasil Ditambahkan');
       handleReset();
     } catch (error: any) {
-      showError(error?.message || 'Gagal menambahkan Part');
+      showError(getErrorMessage(error, 'Gagal menambahkan Part'));
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleReset = () => {
+    inputValueRef.current = '';
     setScannedLot('');
     setStkList([]);
     setScanBuffer('');
@@ -111,11 +132,21 @@ const QaAddPartScreen: React.FC<Props> = ({ navigation }) => {
         ref={barcodeRef}
         style={styles.hiddenInput}
         value={scanBuffer}
-        onChangeText={setScanBuffer}
-        onSubmitEditing={handleScanSubmit}
+        onChangeText={(text) => {
+          inputValueRef.current = text;
+          setScanBuffer(text);
+        }}
+        onSubmitEditing={() => {
+          const val = inputValueRef.current;
+          inputValueRef.current = '';
+          setScanBuffer('');
+          handleScanSubmit(val);
+        }}
         autoFocus
         showSoftInputOnFocus={false}
         blurOnSubmit={false}
+        returnKeyType="done"
+        onBlur={() => setTimeout(focusScanner, 100)}
         caretHidden
       />
 
@@ -141,6 +172,12 @@ const QaAddPartScreen: React.FC<Props> = ({ navigation }) => {
           accentColor={colors.orange}
           placeholder="Arahkan scanner ke barcode lot"
         />
+
+        {isCheckingLot ? (
+          <View style={styles.checkingRow}>
+            <Text style={styles.checkingText}>Mengecek lot number...</Text>
+          </View>
+        ) : null}
 
         {/* ── Step 2: STK Parts ── */}
         {scannedLot ? (
@@ -215,7 +252,7 @@ const QaAddPartScreen: React.FC<Props> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   content: { padding: 16, paddingBottom: 40, gap: 4 },
-  hiddenInput: { position: 'absolute', top: -1000, left: -1000, width: 1, height: 1, opacity: 0 },
+  hiddenInput: { position: 'absolute', width: 1, height: 1, opacity: 0 },
 
   stepLabel: {
     fontSize: 11,
@@ -226,6 +263,18 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     marginTop: 16,
   },
+
+  // Lot checking indicator
+  checkingRow: {
+    marginTop: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    backgroundColor: `${colors.orange}12`,
+    borderWidth: 1,
+    borderColor: `${colors.orange}30`,
+  },
+  checkingText: { fontSize: 13, fontWeight: '600', color: colors.orange },
 
   // STK section
   stkSection: { gap: 0 },

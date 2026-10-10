@@ -85,9 +85,9 @@ const QaAssyHomeScreen: React.FC<Props> = ({ navigation }) => {
             <Text style={styles.subtitle}>Quality Assurance & Assembly Process</Text>
           </View>
         </View>
-        <View style={styles.roleBadge}>
+        {/* <View style={styles.roleBadge}>
           <Text style={styles.roleText}>{user?.role ?? 'qa_assy'}</Text>
-        </View>
+        </View> */}
       </View>
 
       <ScrollView

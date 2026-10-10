@@ -17,6 +17,7 @@ type Props = {
   onClear: () => void;
   label?: string;
   placeholder?: string;
+  onFocus?: () => void;
   onBlur?: () => void;
 };
 
@@ -27,6 +28,7 @@ const SearchableDropdown: React.FC<Props> = ({
   onClear,
   label = 'Work Order',
   placeholder = 'Cari atau pilih Work Order...',
+  onFocus,
   onBlur,
 }) => {
   const [showDropdown, setShowDropdown] = useState(false);
@@ -69,7 +71,10 @@ const SearchableDropdown: React.FC<Props> = ({
             setSearchQuery(text);
             setShowDropdown(true);
           }}
-          onFocus={() => setShowDropdown(true)}
+          onFocus={() => {
+            setShowDropdown(true);
+            onFocus?.();
+          }}
           onBlur={() => {
             // Delay to allow item selection to fire first
             setTimeout(() => {

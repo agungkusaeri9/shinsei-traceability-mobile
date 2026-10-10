@@ -31,6 +31,13 @@ export interface PaginatedResponse<T> {
   limit: number;
 }
 
+// ─── Service Types ───────────────────────────────────────────────────────────
+
+export interface PingResult {
+  success: boolean;
+  message?: string;
+}
+
 // ─── Navigation Types ─────────────────────────────────────────────────────────
 
 export type RootStackParamList = {
@@ -77,6 +84,12 @@ export type DeliveryStackParamList = {
   DeliveryHome: undefined;
 };
 
+export type ProfileStackParamList = {
+  ProfileHome: undefined;
+  Settings: undefined;
+  ChangeIPAddress: undefined;
+};
+
 export type SmtStackParamList = {
   SmtHome: undefined;
   PartRegister: undefined;
@@ -100,7 +113,7 @@ export type AppTabParamList = {
   SMT: NavigatorScreenParams<SmtStackParamList> | undefined;
   QAAssy: NavigatorScreenParams<QaAssyStackParamList> | undefined;
   Delivery: NavigatorScreenParams<DeliveryStackParamList> | undefined;
-  Profile: undefined;
+  Profile: NavigatorScreenParams<ProfileStackParamList> | undefined;
 };
 
 export type { RegisteredPart };

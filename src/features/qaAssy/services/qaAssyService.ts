@@ -1,6 +1,7 @@
 import httpClient from '../../../services/httpClient';
 import { API_ENDPOINTS } from '../../../services/api';
 import { extractStkNumber } from '../../../utils/barcode';
+import { getErrorMessage } from '../../../utils/errorMessage';
 import {
   QaRegisterData,
   QaRegisterPayload,
@@ -32,6 +33,27 @@ export const fetchQaRegisterData = async (
 };
 
 /**
+ * Validate API response and throw when the server reports a failure
+ * (e.g. { status: false, message: '...' }).
+ */
+const unwrapAssyResponse = (response: {
+  data: QaAssyResponse;
+}): QaAssyResponse => {
+  if (response.data?.status === false) {
+    throw new Error(response.data.message || 'Terjadi kesalahan pada server');
+  }
+  return response.data;
+};
+
+/**
+ * Normalize any thrown value (axios error, plain object, Error) into an Error
+ * with a readable message.
+ */
+const toAssyError = (error: unknown): Error => {
+  return new Error(getErrorMessage(error, 'Terjadi kesalahan pada server'));
+};
+
+/**
  * POST API - Register (Endpoint: /assy)
  * Body: { lotNumber: string, stks: string[] }
  */
@@ -42,12 +64,15 @@ export const submitQaRegister = async (
     lotNumber: extractStkNumber(payload.lotNumber),
     stks: (payload.stks ?? []).map(s => extractStkNumber(s)),
   };
-  const response = await httpClient.post<QaAssyResponse>(
-    API_ENDPOINTS.ASSY,
-    body,
-  );
-  console.log("🚀 ~ submitQaRegister ~ response:", response)
-  return response.data;
+  try {
+    const response = await httpClient.post<QaAssyResponse>(
+      API_ENDPOINTS.ASSY,
+      body,
+    );
+    return unwrapAssyResponse(response);
+  } catch (error) {
+    throw toAssyError(error);
+  }
 };
 
 /**
@@ -61,16 +86,20 @@ export const submitQaAddPart = async (
     lotNumber: extractStkNumber(payload.lotNumber),
     stks: (payload.stks ?? []).map(s => extractStkNumber(s)),
   };
-  const response = await httpClient.post<QaAssyResponse>(
-    API_ENDPOINTS.ASSY,
-    body,
-  );
-  return response.data;
+  try {
+    const response = await httpClient.post<QaAssyResponse>(
+      API_ENDPOINTS.ASSY,
+      body,
+    );
+    return unwrapAssyResponse(response);
+  } catch (error) {
+    throw toAssyError(error);
+  }
 };
 
 /**
  * POST API - Finish (Endpoint: /assy/finish)
- * Body: { lotNumber: string, boxId: number }
+ * Body: { lotNumber: string, boxName: string }
  */
 export const submitQaFinish = async (
   payload: QaFinishPayload,
@@ -79,9 +108,13 @@ export const submitQaFinish = async (
     lotNumber: extractStkNumber(payload.lotNumber),
     boxName: payload.boxName,
   };
-  const response = await httpClient.post<QaAssyResponse>(
-    API_ENDPOINTS.ASSY_FINISH,
-    body,
-  );
-  return response.data;
+  try {
+    const response = await httpClient.post<QaAssyResponse>(
+      API_ENDPOINTS.ASSY_FINISH,
+      body,
+    );
+    return unwrapAssyResponse(response);
+  } catch (error) {
+    throw toAssyError(error);
+  }
 };

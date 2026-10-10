@@ -1,11 +1,7 @@
 import axios from 'axios';
 import { API_ENDPOINTS } from './api';
 import { formatUrl } from '../utils/baseUrl';
-
-export interface PingResult {
-  success: boolean;
-  message?: string;
-}
+import type { PingResult } from '../types';
 
 export const testPingService = async (url: string): Promise<PingResult> => {
   const formattedUrl = formatUrl(url);

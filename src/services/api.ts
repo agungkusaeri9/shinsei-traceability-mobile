@@ -48,6 +48,7 @@ export const API_ENDPOINTS = {
   PART_ACCEPTANCES: '/PartAcceptances',
   WH_STOCK_INS: '/wh-stock-ins',
   ORDERS: '/Orders',
+  ORDER_LOTS_SEARCH: '/OrderLots/search',
   MATERIAL_FEEDINGS: '/MaterialFeedings',
   // QA & ASSY
   ASSY: '/assy',

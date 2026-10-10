@@ -20,11 +20,13 @@ import {
   getStkTrackingTable,
   getWarehouseSummary,
   getStkByArea,
-  TrackingSummaryData,
-  StkTrackingItem,
-  WarehouseSummaryData,
-  StkByAreaItem,
 } from '../services/dashboardService';
+import type {
+  StkByAreaItem,
+  StkTrackingItem,
+  TrackingSummaryData,
+  WarehouseSummaryData,
+} from '../types';
 import { WarehouseSummaryWidget } from '../components/WarehouseSummaryWidget';
 import { StkTrackingTableWidget } from '../components/StkTrackingTableWidget';
 import { StkByAreaWidget } from '../components/StkByAreaWidget';

@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { getBaseUrl, setBaseUrl } from '../utils/baseUrl';
 import { updateBaseUrl } from '../services/httpClient';
-import { testPingService, PingResult } from '../services/configService';
+import { testPingService } from '../services/configService';
+import type { PingResult } from '../types';
 
 export const useConfig = () => {
   const [isLoading, setIsLoading] = useState(false);

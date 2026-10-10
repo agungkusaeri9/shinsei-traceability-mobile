@@ -26,9 +26,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   getWarehouseSummary,
   getRecentAcceptances,
-  WarehouseSummaryData,
-  RecentAcceptanceItem,
 } from '../../dashboard/services/dashboardService';
+import type {
+  RecentAcceptanceItem,
+  WarehouseSummaryData,
+} from '../../dashboard/types';
 import {
   StatCardsSkeleton,
   ActivityListSkeleton,

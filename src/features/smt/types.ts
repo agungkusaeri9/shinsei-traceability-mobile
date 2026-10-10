@@ -133,3 +133,34 @@ export interface SmtFinishPayload {
   model: string;
   customer: string;
 }
+
+export interface SmtFinishResponse {
+  status: boolean;
+  message: string;
+  data?: unknown;
+}
+
+// ─── Order Lot ───────────────────────────────────────────────────────────────
+
+export interface OrderLotItem {
+  id?: number;
+  lotNumber: string;
+  customerName?: string;
+  productName?: string;
+}
+
+export interface OrderLotPagination {
+  page: number;
+  limit: number;
+  totalPages: number;
+  total: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
+}
+
+export interface OrderLotSearchResponse {
+  status: boolean;
+  message: string;
+  data: OrderLotItem[];
+  pagination: OrderLotPagination;
+}

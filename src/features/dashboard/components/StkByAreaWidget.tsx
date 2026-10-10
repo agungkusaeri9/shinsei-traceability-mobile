@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { MapPin } from 'lucide-react-native';
 import { colors, shadows } from '../../../theme';
-import { StkByAreaItem } from '../services/dashboardService';
+import { StkByAreaItem } from '../types';
 
 interface Props {
   data: StkByAreaItem[];

@@ -10,10 +10,12 @@ import {
   getWarehouseSummary,
   getRecentAcceptances,
   getTrackingSummary,
-  WarehouseSummaryData,
+} from '../services/dashboardService';
+import type {
   RecentAcceptanceItem,
   TrackingSummaryData,
-} from '../services/dashboardService';
+  WarehouseSummaryData,
+} from '../types';
 import { WarehouseSummaryWidget } from '../components/WarehouseSummaryWidget';
 import { RecentAcceptancesWidget } from '../components/RecentAcceptancesWidget';
 import {

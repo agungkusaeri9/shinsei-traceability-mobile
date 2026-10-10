@@ -21,10 +21,10 @@ import {
   searchOrderLots,
   fetchOrderByLotNumber,
   finishSmt,
-  OrderLotItem,
 } from '../services/smtService';
 import { showSuccess, showError } from '../../../services/toastService';
-import type { SmtOrderData } from '../types';
+import { getErrorMessage } from '../../../utils/errorMessage';
+import type { OrderLotItem, SmtOrderData } from '../types';
 
 type Props = {
   navigation: NativeStackNavigationProp<SmtStackParamList, 'Finish'>;
@@ -46,7 +46,7 @@ const FinishScreen: React.FC<Props> = ({ navigation }) => {
       const data = await searchOrderLots('', 1, 20);
       setOrderLots(Array.isArray(data) ? data : []);
     } catch (error: any) {
-      showError(error?.response?.data?.message || 'Gagal memuat data Order Lot');
+      showError(getErrorMessage(error, 'Gagal memuat data Order Lot'));
     } finally {
       setLoadingLots(false);
     }
@@ -87,7 +87,7 @@ const FinishScreen: React.FC<Props> = ({ navigation }) => {
         setSelectedLotNumber(null);
       }
     } catch (error: any) {
-      showError(error?.response?.data?.message || 'Gagal mengambil detail Order Lot');
+      showError(getErrorMessage(error, 'Gagal mengambil detail Order Lot'));
       setSelectedLotNumber(null);
     } finally {
       setLoadingOrderDetail(false);
@@ -117,7 +117,7 @@ const FinishScreen: React.FC<Props> = ({ navigation }) => {
       showSuccess(`Finish SMT Lot ${selectedLotNumber} berhasil`, 'SMT Finish');
       setIsSuccess(true);
     } catch (error: any) {
-      showError(error?.response?.data?.message || 'Gagal menyelesaikan proses SMT Finish');
+      showError(getErrorMessage(error, 'Gagal menyelesaikan proses SMT Finish'));
     } finally {
       setIsSubmitting(false);
     }

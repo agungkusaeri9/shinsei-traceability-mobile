@@ -8,9 +8,15 @@ import { QaAssyStackParamList } from '../../../types';
 import { colors } from '../../../theme';
 import QaAssyHeader from '../components/QaAssyHeader';
 import ScanZone from '../components/ScanZone';
+import LotInfoCard from '../components/LotInfoCard';
 import Button from '../../../components/Button';
-import { submitQaRegister } from '../services/qaAssyService';
+import {
+  submitQaRegister,
+} from '../services/qaAssyService';
+import { fetchOrderByLotNumber } from '../../smt/services/smtService';
+import type { SmtOrderData } from '../../smt/types';
 import { showSuccess, showError } from '../../../services/toastService';
+import { getErrorMessage } from '../../../utils/errorMessage';
 import { extractStkNumber } from '../../../utils/barcode';
 
 type Props = {
@@ -19,8 +25,11 @@ type Props = {
 
 const QaRegisterScreen: React.FC<Props> = ({ navigation }) => {
   const barcodeRef = useRef<TextInput>(null);
+  const inputValueRef = useRef('');
   const [scanBuffer, setScanBuffer] = useState('');
   const [scannedLot, setScannedLot] = useState('');
+  const [lotInfo, setLotInfo] = useState<SmtOrderData | null>(null);
+  const [isCheckingLot, setIsCheckingLot] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const focusScanner = useCallback(() => {
@@ -34,14 +43,29 @@ const QaRegisterScreen: React.FC<Props> = ({ navigation }) => {
     }, [focusScanner]),
   );
 
-  const handleScanSubmit = () => {
-    const raw = scanBuffer.trim();
-    setScanBuffer('');
+  const handleScanSubmit = async (rawValue: string) => {
+    const raw = rawValue.trim();
     if (!raw) return;
+    if (isCheckingLot) return;
     const cleanLot = extractStkNumber(raw);
-    setScannedLot(cleanLot);
-    showSuccess('Lot berhasil di-scan: ' + cleanLot, 'Scan Berhasil');
-    focusScanner();
+
+    // Cek dulu keberadaan lot number ke /orders/lot/{lot_number}
+    setIsCheckingLot(true);
+    try {
+      const res = await fetchOrderByLotNumber(cleanLot);
+      if (res.status && res.data) {
+        setScannedLot(cleanLot);
+        setLotInfo(res.data);
+        showSuccess('Lot ditemukan: ' + cleanLot, 'Lot Terverifikasi');
+      } else {
+        showError(res.message || 'Lot number tidak ditemukan');
+      }
+    } catch (error: any) {
+      showError(getErrorMessage(error, 'Lot number tidak ditemukan'));
+    } finally {
+      setIsCheckingLot(false);
+      focusScanner();
+    }
   };
 
   const handleSubmit = async () => {
@@ -55,14 +79,16 @@ const QaRegisterScreen: React.FC<Props> = ({ navigation }) => {
       showSuccess(res.message, 'Registrasi Berhasil');
       handleReset();
     } catch (error: any) {
-      showError(error?.message || 'Gagal melakukan registrasi');
+      showError(getErrorMessage(error, 'Gagal melakukan registrasi'));
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleReset = () => {
+    inputValueRef.current = '';
     setScannedLot('');
+    setLotInfo(null);
     setScanBuffer('');
     focusScanner();
   };
@@ -73,11 +99,21 @@ const QaRegisterScreen: React.FC<Props> = ({ navigation }) => {
         ref={barcodeRef}
         style={styles.hiddenInput}
         value={scanBuffer}
-        onChangeText={setScanBuffer}
-        onSubmitEditing={handleScanSubmit}
+        onChangeText={(text) => {
+          inputValueRef.current = text;
+          setScanBuffer(text);
+        }}
+        onSubmitEditing={() => {
+          const val = inputValueRef.current;
+          inputValueRef.current = '';
+          setScanBuffer('');
+          handleScanSubmit(val);
+        }}
         autoFocus
         showSoftInputOnFocus={false}
         blurOnSubmit={false}
+        returnKeyType="done"
+        onBlur={() => setTimeout(focusScanner, 100)}
         caretHidden
       />
 
@@ -108,6 +144,14 @@ const QaRegisterScreen: React.FC<Props> = ({ navigation }) => {
           placeholder="Arahkan scanner ke barcode lot"
         />
 
+        {isCheckingLot ? (
+          <View style={styles.checkingRow}>
+            <Text style={styles.checkingText}>Mengecek lot number...</Text>
+          </View>
+        ) : null}
+
+        {scannedLot && lotInfo ? <LotInfoCard lotInfo={lotInfo} /> : null}
+
         {scannedLot ? (
           <Button
             title="Register"
@@ -125,14 +169,7 @@ const QaRegisterScreen: React.FC<Props> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   content: { padding: 16, paddingBottom: 40 },
-  hiddenInput: {
-    position: 'absolute',
-    top: -1000,
-    left: -1000,
-    width: 1,
-    height: 1,
-    opacity: 0,
-  },
+  hiddenInput: { position: 'absolute', width: 1, height: 1, opacity: 0 },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -140,6 +177,16 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   infoText: { fontSize: 13, color: colors.textSecondary, flex: 1 },
+  checkingRow: {
+    marginTop: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    backgroundColor: `${colors.indigo}12`,
+    borderWidth: 1,
+    borderColor: `${colors.indigo}30`,
+  },
+  checkingText: { fontSize: 13, fontWeight: '600', color: colors.indigo },
   submitBtn: {
     marginTop: 16,
     width: '100%',

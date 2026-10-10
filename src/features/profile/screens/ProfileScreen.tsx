@@ -8,16 +8,16 @@ import {
   TouchableOpacity,
   RefreshControl,
 } from 'react-native';
-import { AppTabParamList } from '../../../types';
+import { ProfileStackParamList } from '../../../types';
 import ProfileHeader from '../components/ProfileHeader';
 import { useAuth } from '../../../hooks/useAuth';
 import Modal from '../../../components/Modal';
 import Button from '../../../components/Button';
 import { Cog, Info, User } from 'lucide-react-native';
-import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 type Props = {
-  navigation: BottomTabNavigationProp<AppTabParamList, 'Profile'>;
+  navigation: NativeStackNavigationProp<ProfileStackParamList, 'ProfileHome'>;
 };
 
 const menuItems = [
@@ -78,6 +78,11 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
                 index === menuItems.length - 1 && styles.menuItemLast,
               ]}
               activeOpacity={0.7}
+              onPress={() => {
+                if (item.id === 'setting') {
+                  navigation.navigate('Settings');
+                }
+              }}
             >
               <View style={styles.menuIcon}>{item.icon}</View>
               <Text style={styles.menuLabel}>{item.label}</Text>

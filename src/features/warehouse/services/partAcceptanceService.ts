@@ -11,17 +11,6 @@ import {
   PartAcceptanceItem,
 } from '../types';
 
-export type {
-  PartSearchResult,
-  AreaItem,
-  CustomerItem,
-  CreatePartAcceptancePayload,
-  PartAcceptanceResponse,
-  PartLocation,
-  PartSupplierCustomer,
-  PartAcceptanceItem,
-};
-
 // ─── API Functions ──────────────────────────────────────────────────────────
 
 /**
@@ -32,7 +21,7 @@ export const searchParts = async (
   partNo: string,
 ): Promise<PartSearchResult[]> => {
   const response = await httpClient.get(API_ENDPOINTS.PARTS, {
-    params: { search: partNo, paginate: false },
+    params: { barcodeMatching: partNo, paginate: false },
   });
   const raw = response.data;
   // Handle both array response and paginated response

@@ -1,52 +1,13 @@
 import httpClient from '../../../services/httpClient';
 import { API_ENDPOINTS } from '../../../services/api';
-
-export interface DeliveryResponse {
-  status: boolean;
-  message: string;
-  data?: any;
-}
-
-export interface OrderPoItem {
-  id: number;
-  poNumber: string;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-export interface BoxItem {
-  id: number;
-  name: string;
-  used?: boolean;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-export interface PoListResponse {
-  status: boolean;
-  message: string;
-  data?: OrderPoItem[] | any;
-  pagination?: {
-    page: number;
-    limit: number;
-    totalPages: number;
-    total: number;
-    hasPreviousPage: boolean;
-    hasNextPage: boolean;
-  };
-}
-
-export interface BoxListResponse {
-  status: boolean;
-  message: string;
-  data?: BoxItem[];
-}
-
-export interface SubmitDeliveryPayload {
-  poNumber?: string;
-  boxes?: string[];
-  boxName?: string;
-}
+import type {
+  BoxItem,
+  BoxListResponse,
+  DeliveryResponse,
+  OrderPoItem,
+  PoListResponse,
+  SubmitDeliveryPayload,
+} from '../types';
 
 /**
  * GET /api/orderpos
@@ -137,21 +98,14 @@ export const getBoxesByPo = async (poNumber: string): Promise<BoxItem[]> => {
 
 /**
  * POST /api/assy/delivered
- * Submits delivery for box / boxes under a PO
+ * Submits delivery for a single box (payload: { boxName })
  */
 export const submitDelivery = async (
-  payloadOrBoxName: string | SubmitDeliveryPayload,
+  payload: SubmitDeliveryPayload,
 ): Promise<DeliveryResponse> => {
-  let body: any;
-  if (typeof payloadOrBoxName === 'string') {
-    body = { boxName: payloadOrBoxName };
-  } else {
-    body = payloadOrBoxName;
-  }
-
   const response = await httpClient.post<DeliveryResponse>(
     API_ENDPOINTS.ASSY_DELIVERED,
-    body,
+    payload,
   );
   return response.data;
 };

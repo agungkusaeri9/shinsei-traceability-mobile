@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Package, CheckCircle2, ArrowDownToLine, Cpu } from 'lucide-react-native';
 import { colors, shadows } from '../../../theme';
-import { WarehouseSummaryData } from '../services/dashboardService';
+import { WarehouseSummaryData } from '../types';
 
 interface Props {
   data: WarehouseSummaryData;

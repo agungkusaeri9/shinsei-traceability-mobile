@@ -32,10 +32,10 @@ import {
   getPoNumbers,
   getBoxesByPo,
   submitDelivery,
-  OrderPoItem,
-  BoxItem,
 } from '../services/deliveryService';
+import type { BoxItem, OrderPoItem } from '../types';
 import { showSuccess, showError, showInfo } from '../../../services/toastService';
+import { getErrorMessage } from '../../../utils/errorMessage';
 
 type Props = {
   navigation: NativeStackNavigationProp<any, any>;
@@ -43,6 +43,8 @@ type Props = {
 
 const DeliveryScreen: React.FC<Props> = ({ navigation }) => {
   const barcodeRef = useRef<TextInput>(null);
+  const inputValueRef = useRef('');
+  const isDropdownFocusedRef = useRef(false);
   const [scanBuffer, setScanBuffer] = useState('');
 
   // PO List state
@@ -64,7 +66,12 @@ const DeliveryScreen: React.FC<Props> = ({ navigation }) => {
   } | null>(null);
 
   const focusScanner = useCallback(() => {
-    requestAnimationFrame(() => barcodeRef.current?.focus());
+    if (isDropdownFocusedRef.current) return;
+    requestAnimationFrame(() => {
+      if (!isDropdownFocusedRef.current) {
+        barcodeRef.current?.focus();
+      }
+    });
   }, []);
 
   useFocusEffect(
@@ -81,7 +88,7 @@ const DeliveryScreen: React.FC<Props> = ({ navigation }) => {
       const data = await getPoNumbers();
       setPoList(data);
     } catch (error: any) {
-      showError(error?.message || 'Gagal mengambil daftar PO Number');
+      showError(getErrorMessage(error, 'Gagal mengambil daftar PO Number'));
     } finally {
       setIsLoadingPoList(false);
     }
@@ -113,7 +120,7 @@ const DeliveryScreen: React.FC<Props> = ({ navigation }) => {
       setExpectedBoxes(boxes);
       showSuccess(`PO ${poNumber} dipilih. ${boxes.length} box didapatkan.`, 'PO Terpilih');
     } catch (error: any) {
-      showError(error?.message || `Gagal mengambil detail box PO ${poNumber}`);
+      showError(getErrorMessage(error, `Gagal mengambil detail box PO ${poNumber}`));
     } finally {
       setIsLoadingPoDetail(false);
       focusScanner();
@@ -122,6 +129,7 @@ const DeliveryScreen: React.FC<Props> = ({ navigation }) => {
 
   // Reset PO Selection
   const handleResetPo = () => {
+    inputValueRef.current = '';
     setSelectedPo(null);
     setExpectedBoxes([]);
     setScannedBoxes([]);
@@ -130,9 +138,8 @@ const DeliveryScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   // Process barcode scan
-  const handleScanSubmit = () => {
-    const raw = scanBuffer.trim();
-    setScanBuffer('');
+  const handleScanSubmit = (rawValue: string) => {
+    const raw = rawValue.trim();
     if (!raw) return;
 
     // If no PO selected yet, try auto-match PO Number
@@ -148,41 +155,38 @@ const DeliveryScreen: React.FC<Props> = ({ navigation }) => {
       return;
     }
 
-    // Process box scan for active PO
-    if (scannedBoxes.includes(raw)) {
-      showInfo(`Box "${raw}" sudah di-scan.`);
+    // Process box scan for active PO — box harus ada di daftar box PO
+    const matchedBox = expectedBoxes.find(
+      (b) => b.name.toLowerCase() === raw.toLowerCase()
+    );
+
+    if (!matchedBox) {
+      showError(`Box "${raw}" tidak ada dalam daftar box PO ${selectedPo}.`);
+      focusScanner();
+      return;
+    }
+
+    if (scannedBoxes.includes(matchedBox.name)) {
+      showInfo(`Box "${matchedBox.name}" sudah di-scan.`);
       focusScanner();
       return;
     }
 
     // Add box to scanned state
-    setScannedBoxes((prev) => [...prev, raw]);
-
-    const isExpected = expectedBoxes.some(
-      (b) => b.name.toLowerCase() === raw.toLowerCase()
-    );
-
-    if (isExpected) {
-      showSuccess(`Box "${raw}" terverifikasi!`, 'Box Ter-scan');
-    } else {
-      showSuccess(`Box "${raw}" berhasil di-scan.`, 'Box Ter-scan');
-    }
-
+    setScannedBoxes((prev) => [...prev, matchedBox.name]);
+    showSuccess(`Box "${matchedBox.name}" terverifikasi!`, 'Box Ter-scan');
     focusScanner();
   };
 
-  // Manual box scan toggle
-  const handleToggleBoxScan = (boxName: string) => {
-    if (scannedBoxes.includes(boxName)) {
-      setScannedBoxes((prev) => prev.filter((b) => b !== boxName));
-      showInfo(`Scan box "${boxName}" dibatalkan.`);
-    } else {
-      setScannedBoxes((prev) => [...prev, boxName]);
-      showSuccess(`Box "${boxName}" ditandai ter-scan.`, 'Box Ter-scan');
-    }
+  // Manual click hanya untuk menghapus box yang sudah di-scan.
+  // Box tidak bisa ditandai ter-scan secara manual — harus melalui scan barcode.
+  const handleRemoveScannedBox = (boxName: string) => {
+    if (!boxName) return;
+    setScannedBoxes((prev) => prev.filter((b) => b !== boxName));
+    showInfo(`Scan box "${boxName}" dihapus.`);
   };
 
-  // Submit Delivery
+  // Submit Delivery (per-box: { boxName })
   const handleSubmitDelivery = async () => {
     if (!selectedPo) {
       showError('Pilih PO Number terlebih dahulu');
@@ -197,8 +201,7 @@ const DeliveryScreen: React.FC<Props> = ({ navigation }) => {
     setIsSubmitting(true);
     try {
       const res = await submitDelivery({
-        poNumber: selectedPo,
-        boxes: scannedBoxes,
+        boxNames: scannedBoxes,
       });
 
       showSuccess(res.message || 'Delivery berhasil disubmit!', 'Delivery Berhasil');
@@ -212,14 +215,11 @@ const DeliveryScreen: React.FC<Props> = ({ navigation }) => {
       handleResetPo();
       fetchPoList();
     } catch (error: any) {
-      showError(error?.message || 'Gagal mengirim data delivery');
+      showError(getErrorMessage(error, 'Gagal mengirim data delivery'));
     } finally {
       setIsSubmitting(false);
     }
   };
-
-  const expectedBoxNames = expectedBoxes.map((b) => b.name);
-  const extraScannedBoxes = scannedBoxes.filter((b) => !expectedBoxNames.includes(b));
 
   const progressPercent =
     expectedBoxes.length > 0
@@ -229,16 +229,26 @@ const DeliveryScreen: React.FC<Props> = ({ navigation }) => {
         : 0;
 
   return (
-    <View style={styles.container} onTouchStart={focusScanner}>
+    <View style={styles.container}>
       <TextInput
         ref={barcodeRef}
         style={styles.hiddenInput}
         value={scanBuffer}
-        onChangeText={setScanBuffer}
-        onSubmitEditing={handleScanSubmit}
+        onChangeText={(text) => {
+          inputValueRef.current = text;
+          setScanBuffer(text);
+        }}
+        onSubmitEditing={() => {
+          const val = inputValueRef.current;
+          inputValueRef.current = '';
+          setScanBuffer('');
+          handleScanSubmit(val);
+        }}
         autoFocus
         showSoftInputOnFocus={false}
         blurOnSubmit={false}
+        returnKeyType="done"
+        onBlur={() => setTimeout(focusScanner, 100)}
         caretHidden
       />
 
@@ -303,6 +313,13 @@ const DeliveryScreen: React.FC<Props> = ({ navigation }) => {
                   selectedValue={selectedPo || ''}
                   onSelect={handleSelectPo}
                   onClear={handleResetPo}
+                  onFocus={() => {
+                    isDropdownFocusedRef.current = true;
+                  }}
+                  onBlur={() => {
+                    isDropdownFocusedRef.current = false;
+                    focusScanner();
+                  }}
                   label="Cari & Pilih PO"
                   placeholder="Ketik atau pilih PO Number..."
                 />
@@ -413,78 +430,58 @@ const DeliveryScreen: React.FC<Props> = ({ navigation }) => {
                   <View style={styles.emptyBoxNotice}>
                     <Info color={colors.warning} size={16} />
                     <Text style={styles.emptyBoxText}>
-                      Tidak ada daftar box terdaftar untuk PO ini. Silakan scan box secara langsung.
+                      Tidak ada daftar box terdaftar untuk PO ini.
                     </Text>
                   </View>
                 ) : (
                   expectedBoxes.map((boxItem) => {
                     const isScanned = scannedBoxes.includes(boxItem.name);
+
+                    // Box belum di-scan: tidak bisa diklik — tandai hanya dengan scan barcode
+                    if (!isScanned) {
+                      return (
+                        <View
+                          key={boxItem.id || boxItem.name}
+                          style={styles.boxItemCard}
+                        >
+                          <View style={styles.boxCheckCircle} />
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.boxNameText}>{boxItem.name}</Text>
+                            <Text style={styles.boxStatusText}>Belum di-scan</Text>
+                          </View>
+                        </View>
+                      );
+                    }
+
+                    // Box sudah di-scan: klik hanya untuk menghapus
                     return (
                       <TouchableOpacity
                         key={boxItem.id || boxItem.name}
-                        style={[
-                          styles.boxItemCard,
-                          isScanned && styles.boxItemCardScanned,
-                        ]}
-                        onPress={() => handleToggleBoxScan(boxItem.name)}
+                        style={[styles.boxItemCard, styles.boxItemCardScanned]}
+                        onPress={() => handleRemoveScannedBox(boxItem.name)}
                         activeOpacity={0.7}
                       >
                         <View
-                          style={[
-                            styles.boxCheckCircle,
-                            isScanned && styles.boxCheckCircleActive,
-                          ]}
+                          style={[styles.boxCheckCircle, styles.boxCheckCircleActive]}
                         >
-                          {isScanned ? (
-                            <Check color={colors.textInverse} size={14} />
-                          ) : null}
+                          <Check color={colors.textInverse} size={14} />
                         </View>
                         <View style={{ flex: 1 }}>
                           <Text
-                            style={[
-                              styles.boxNameText,
-                              isScanned && styles.boxNameTextScanned,
-                            ]}
+                            style={[styles.boxNameText, styles.boxNameTextScanned]}
                           >
                             {boxItem.name}
                           </Text>
                           <Text style={styles.boxStatusText}>
-                            {isScanned ? 'Ter-scan' : 'Belum di-scan'}
+                            Ter-scan • tap untuk hapus
                           </Text>
                         </View>
-                        {isScanned ? (
-                          <View style={styles.scannedBadge}>
-                            <Text style={styles.scannedBadgeText}>OK</Text>
-                          </View>
-                        ) : null}
+                        <View style={styles.scannedBadge}>
+                          <Text style={styles.scannedBadgeText}>OK</Text>
+                        </View>
                       </TouchableOpacity>
                     );
                   })
-                )}
-
-                {/* Extra scanned boxes if any */}
-                {extraScannedBoxes.length > 0 && (
-                  <View style={{ marginTop: 12 }}>
-                    <Text style={styles.extraBoxSectionTitle}>Box Tambahan Di-scan</Text>
-                    {extraScannedBoxes.map((boxName, idx) => (
-                      <TouchableOpacity
-                        key={`extra-${idx}`}
-                        style={[styles.boxItemCard, styles.boxItemCardScanned]}
-                        onPress={() => handleToggleBoxScan(boxName)}
-                        activeOpacity={0.7}
-                      >
-                        <View style={[styles.boxCheckCircle, styles.boxCheckCircleActive]}>
-                          <Check color={colors.textInverse} size={14} />
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={[styles.boxNameText, styles.boxNameTextScanned]}>
-                            {boxName}
-                          </Text>
-                          <Text style={styles.boxStatusText}>Ter-scan (Tambahan)</Text>
-                        </View>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
                 )}
               </View>
             )}
@@ -537,7 +534,7 @@ const DeliveryScreen: React.FC<Props> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   content: { padding: 16, paddingBottom: 40 },
-  hiddenInput: { position: 'absolute', top: -1000, left: -1000, width: 1, height: 1, opacity: 0 },
+  hiddenInput: { position: 'absolute', width: 1, height: 1, opacity: 0 },
 
   // Header button
   headerResetBtn: {
@@ -703,7 +700,6 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   scannedBadgeText: { fontSize: 10, fontWeight: '800', color: colors.textInverse },
-  extraBoxSectionTitle: { fontSize: 13, fontWeight: '700', color: colors.orange, marginBottom: 8 },
 
   // Submit Button
   submitBtn: {

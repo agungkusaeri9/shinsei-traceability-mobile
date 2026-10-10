@@ -9,10 +9,12 @@ import {
   getTrackingSummary,
   getStkTrackingTable,
   getStkByArea,
-  TrackingSummaryData,
-  StkTrackingItem,
-  StkByAreaItem,
 } from '../services/dashboardService';
+import type {
+  StkByAreaItem,
+  StkTrackingItem,
+  TrackingSummaryData,
+} from '../types';
 import { StkTrackingTableWidget } from '../components/StkTrackingTableWidget';
 import { StkByAreaWidget } from '../components/StkByAreaWidget';
 

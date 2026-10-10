@@ -9,8 +9,6 @@ import {
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { AuthStackParamList } from '../../../types';
 import Input from '../../../components/Input';
 import Button from '../../../components/Button';
 import { getBaseUrl, setBaseUrl, formatUrl } from '../../../utils/baseUrl';
@@ -18,8 +16,9 @@ import { updateBaseUrl } from '../../../services/httpClient';
 import { useConfig } from '../../../hooks/useConfig';
 import { showError, showSuccess } from '../../../services/toastService';
 
+/** Minimal navigation shape — reusable across AuthStack and ProfileStack */
 type Props = {
-  navigation: NativeStackNavigationProp<AuthStackParamList, 'Settings'>;
+  navigation: { goBack(): void };
 };
 
 const SettingsScreen: React.FC<Props> = ({ navigation }) => {

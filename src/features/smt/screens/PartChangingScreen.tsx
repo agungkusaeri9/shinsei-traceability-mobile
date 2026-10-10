@@ -34,6 +34,7 @@ import {
 } from '../../../services/toastService';
 import type { SmtOrderData, SmtOrderDetail, SmtStkListItem } from '../types';
 import { fetchOrderByLotNumber, submitSmt } from '../services/smtService';
+import { getErrorMessage } from '../../../utils/errorMessage';
 import { fetchStkData } from '../../warehouse/services/warehouseService';
 import { extractStkNumber } from '../../../utils/barcode';
 import type { StkData } from '../../warehouse/types';
@@ -114,9 +115,7 @@ const PartChangingScreen: React.FC<Props> = ({ navigation }) => {
         focusScanner();
       }
     } catch (error: any) {
-      showError(
-        error?.response?.data?.message || 'Gagal mengambil data lot number',
-      );
+      showError(getErrorMessage(error, 'Gagal mengambil data lot number'));
       setScanInput('');
       focusScanner();
     } finally {
@@ -328,7 +327,7 @@ const PartChangingScreen: React.FC<Props> = ({ navigation }) => {
         );
       }
     } catch (error: any) {
-      showError(error?.response?.data?.message || 'Gagal mengambil data STK');
+      showError(getErrorMessage(error, 'Gagal mengambil data STK'));
     } finally {
       setIsLoading(false);
     }
@@ -358,7 +357,7 @@ const PartChangingScreen: React.FC<Props> = ({ navigation }) => {
       showSuccess('Part Changing selesai!');
       setStep('finished');
     } catch (error: any) {
-      showError(error?.response?.data?.message || 'Gagal mengirim data Part Changing');
+      showError(getErrorMessage(error, 'Gagal mengirim data Part Changing'));
     } finally {
       setIsSubmitting(false);
     }

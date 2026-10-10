@@ -3,6 +3,7 @@ import { LoginFormValues, LoginFormErrors } from '../types';
 import { loginService } from '../services/authService';
 import { useAuth } from '../../../hooks/useAuth';
 import { showError } from '../../../services/toastService';
+import { getErrorMessage } from '../../../utils/errorMessage';
 
 export const useLogin = () => {
   const { setAuth, isLoading, setLoading } = useAuth();
@@ -50,7 +51,7 @@ export const useLogin = () => {
       setAuth(user, token);
       return true;
     } catch (error: any) {
-      const msg = error?.response?.data?.message || 'Login gagal. Coba lagi.';
+      const msg = getErrorMessage(error, 'Login gagal. Coba lagi.');
       showError(msg);
       // setErrors({ username: msg });
       return false;

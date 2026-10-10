@@ -30,7 +30,7 @@ import {
   showError,
   showInfo,
 } from '../../../services/toastService';
-import type { Order, OrderSummary, AvailablePart } from '../types';
+import type { Order, OrderSummary, AvailablePart, MissingPart } from '../types';
 
 // Components
 import WarehouseHeader from '../components/WarehouseHeader';
@@ -44,6 +44,7 @@ import {
   submitMaterialFeeding,
 } from '../services/warehouseService';
 import { extractStkNumber } from '../../../utils/barcode';
+import { getErrorMessage } from '../../../utils/errorMessage';
 
 type Props = {
   navigation: NativeStackNavigationProp<WarehouseStackParamList, 'StockOut'>;
@@ -90,7 +91,7 @@ const StockOutScreen: React.FC<Props> = ({ navigation }) => {
       [...list1, ...list2].forEach(o => combinedMap.set(o.id, o));
       setOrders(Array.from(combinedMap.values()));
     } catch (error: any) {
-      showError(error?.response?.data?.message || 'Gagal memuat data Order');
+      showError(getErrorMessage(error, 'Gagal memuat data Order'));
     } finally {
       setLoadingOrders(false);
     }
@@ -138,15 +139,13 @@ const StockOutScreen: React.FC<Props> = ({ navigation }) => {
     setLoadingOrderDetail(true);
     try {
       const order = await fetchOrderById(selectedOrderId);
-      if (!order.availableParts || order.availableParts.length === 0) {
-        showError('Tidak ada STK yang tersedia untuk Order ini');
-        return;
-      }
+      // Order tanpa part tersedia tetap bisa dibuka —
+      // daftar missing part ditampilkan di step konfirmasi
       setSelectedOrder(order);
       setScannedStkNumbers(new Set());
       setStep('confirm_wo');
     } catch (error: any) {
-      showError(error?.response?.data?.message || 'Gagal memuat detail Order');
+      showError(getErrorMessage(error, 'Gagal memuat detail Order'));
     } finally {
       setLoadingOrderDetail(false);
     }
@@ -225,7 +224,7 @@ const StockOutScreen: React.FC<Props> = ({ navigation }) => {
       );
       setStep('finished');
     } catch (error: any) {
-      showError(error?.response?.data?.message || 'Gagal memproses Stock Out');
+      showError(getErrorMessage(error, 'Gagal memproses Stock Out'));
     } finally {
       setIsSubmitting(false);
     }
@@ -370,6 +369,18 @@ const StockOutScreen: React.FC<Props> = ({ navigation }) => {
               />
             </View>
 
+            {availableCount === 0 && (
+              <View style={styles.missingBanner}>
+                <AlertCircle color={colors.warning ?? '#F59E0B'} size={16} />
+                <Text style={styles.missingBannerText}>
+                  Tidak ada STK yang tersedia — berikut part yang belum tersedia
+                  di gudang
+                </Text>
+              </View>
+            )}
+
+            <MissingPartsList parts={missingParts} />
+
             <View style={styles.buttonRow}>
               <Button
                 title="Kembali"
@@ -380,6 +391,7 @@ const StockOutScreen: React.FC<Props> = ({ navigation }) => {
               <Button
                 title="Proses"
                 onPress={() => setStep('scanning')}
+                disabled={availableCount === 0}
                 style={styles.halfBtn}
               />
             </View>
@@ -443,24 +455,7 @@ const StockOutScreen: React.FC<Props> = ({ navigation }) => {
                   )}
                 </>
               }
-              ListFooterComponent={
-                missingParts.length > 0 ? (
-                  <View style={styles.missingSection}>
-                    <Text style={styles.missingSectionTitle}>
-                      Part Belum Tersedia
-                    </Text>
-                    {missingParts.map((p, i) => (
-                      <View key={`missing-${i}`} style={styles.missingItem}>
-                        <AlertCircle color={colors.warning ?? '#F59E0B'} size={14} />
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.missingPartNumber}>{p.partNumber}</Text>
-                          <Text style={styles.missingPartCount}>Qty kurang: {p.stkCount}</Text>
-                        </View>
-                      </View>
-                    ))}
-                  </View>
-                ) : null
-              }
+              ListFooterComponent={<MissingPartsList parts={missingParts} />}
             />
 
             <View style={styles.bottomBar}>
@@ -532,6 +527,24 @@ const DetailRow = ({ label, value }: { label: string; value: string }) => (
     <Text style={styles.detailValue}>{value}</Text>
   </View>
 );
+
+const MissingPartsList = ({ parts }: { parts: MissingPart[] }) => {
+  if (parts.length === 0) return null;
+  return (
+    <View style={styles.missingSection}>
+      <Text style={styles.missingSectionTitle}>Part Belum Tersedia</Text>
+      {parts.map((p, i) => (
+        <View key={`missing-${i}`} style={styles.missingItem}>
+          <AlertCircle color={colors.warning ?? '#F59E0B'} size={14} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.missingPartNumber}>{p.partNumber}</Text>
+            <Text style={styles.missingPartCount}>Qty kurang: {p.stkCount}</Text>
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+};
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },

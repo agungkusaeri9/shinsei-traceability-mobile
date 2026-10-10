@@ -5,7 +5,7 @@ import { colors, shadows } from '../../../theme';
 import {
   TrackingSummaryData,
   StkTrackingItem,
-} from '../services/dashboardService';
+} from '../types';
 
 interface Props {
   summary: TrackingSummaryData;

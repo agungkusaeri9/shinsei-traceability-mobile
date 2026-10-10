@@ -26,6 +26,7 @@ import { WarehouseStackParamList } from '../../../types';
 import { colors, shadows } from '../../../theme';
 import Button from '../../../components/Button';
 import { showSuccess, showError } from '../../../services/toastService';
+import { getErrorMessage } from '../../../utils/errorMessage';
 import type { StkData, StkLocation } from '../types';
 import WarehouseHeader from '../components/WarehouseHeader';
 import InfoBanner from '../components/InfoBanner';
@@ -145,7 +146,7 @@ const StockInScreen: React.FC<Props> = ({ navigation }) => {
         focusScanner();
       }
     } catch (error: any) {
-      showError(error?.response?.data?.message || 'Gagal mengambil data STK');
+      showError(getErrorMessage(error, 'Gagal mengambil data STK'));
       setStkInput('');
       focusScanner();
     } finally {
@@ -303,8 +304,7 @@ const StockInScreen: React.FC<Props> = ({ navigation }) => {
       );
       handleReset();
     } catch (error: any) {
-      const msg =
-        error?.response?.data?.message || 'Gagal stock in. Coba lagi.';
+      const msg = getErrorMessage(error, 'Gagal stock in. Coba lagi.');
       showError(msg);
     } finally {
       setIsSubmitting(false);

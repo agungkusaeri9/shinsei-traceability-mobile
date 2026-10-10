@@ -17,9 +17,12 @@ import InfoBanner from '../components/InfoBanner';
 import {
   searchParts, fetchAreas, fetchCustomers, createPartAcceptance,
   getDefaultExpiredDate, getPartDisplayLocations,
-  PartSearchResult, AreaItem, CustomerItem, CreatePartAcceptancePayload,
 } from '../services/partAcceptanceService';
+import type {
+  PartSearchResult, AreaItem, CustomerItem, CreatePartAcceptancePayload,
+} from '../types';
 import { showSuccess, showError } from '../../../services/toastService';
+import { extractPartNo } from '../../../utils/barcode';
 
 type Props = { navigation: NativeStackNavigationProp<WarehouseStackParamList, 'PartAcceptance'> };
 type Step = 'search' | 'select' | 'detail';
@@ -78,8 +81,14 @@ const PartAcceptanceScreen: React.FC<Props> = ({ navigation }) => {
 
   // ─── Handlers ────────────────────────────────────────────────────────────
   const handleSearchPartNo = useCallback(async (overrideValue?: string) => {
-    const targetValue = (overrideValue !== undefined ? overrideValue : inputValueRef.current).trim();
+    const rawValue = overrideValue !== undefined ? overrideValue : inputValueRef.current;
+    // Parsing hasil scan: nilai barcode bisa berisi beberapa bagian
+    // (dipisah spasi/baris baru) — gunakan bagian pertama saja sebagai Part No
+    const targetValue = extractPartNo(rawValue);
     if (!targetValue) { showError('Masukkan Part No terlebih dahulu'); return; }
+    // Tampilkan nilai yang sudah diparsing di input
+    inputValueRef.current = targetValue;
+    setPartNoInput(targetValue);
     setSelectedPart(null); setHasSearched(false); setSearchResults([]);
     setIsSearching(true);
     try {
