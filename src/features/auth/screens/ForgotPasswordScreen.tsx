@@ -13,35 +13,21 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '../../../types';
 import Input from '../../../components/Input';
 import Button from '../../../components/Button';
-import { useState } from 'react';
+import { useForgotPasswordFlow } from '../hooks/useForgotPasswordFlow';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'ForgotPassword'>;
 };
 
 const ForgotPasswordScreen: React.FC<Props> = ({ navigation }) => {
-  const [email, setEmail] = useState('');
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSent, setIsSent] = useState(false);
-
-  const handleSubmit = async () => {
-    if (!email.trim()) {
-      setError('Email wajib diisi');
-      return;
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setError('Format email tidak valid');
-      return;
-    }
-    setError('');
-    setIsLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
-      setIsSent(true);
-    }, 1500);
-  };
+  const {
+    email,
+    errorMessage,
+    isLoading,
+    isSent,
+    handleChangeEmail,
+    handleSubmit,
+  } = useForgotPasswordFlow();
 
   return (
     <KeyboardAvoidingView
@@ -84,11 +70,8 @@ const ForgotPasswordScreen: React.FC<Props> = ({ navigation }) => {
                 label="Email"
                 placeholder="Masukkan email Anda"
                 value={email}
-                onChangeText={text => {
-                  setEmail(text);
-                  setError('');
-                }}
-                error={error}
+                onChangeText={handleChangeEmail}
+                error={errorMessage}
                 keyboardType="email-address"
               />
               <Button

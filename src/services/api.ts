@@ -9,6 +9,7 @@ export const API_ENDPOINTS = {
   LOGIN: '/auth/login',
   LOGOUT: '/auth/logout',
   REFRESH_TOKEN: '/auth/refresh',
+  ME: '/auth/me',
   FORGOT_PASSWORD: '/auth/forgot-password',
 
   // Profile
@@ -26,11 +27,14 @@ export const API_ENDPOINTS = {
 
   // SMT
   ORDER_LOT: '/orders/lot',
+  ORDER_LOTS: '/orderlots',
   SMTS: '/smts',
   SMTS_FINISH: '/smts/finish',
+  SMTS_ACCEPTANCE: '/smts/acceptance',
 
   // STK
   STKS: '/stks',
+  STK_TIMELINES: '/Stks/timelines',
   CHECK_STK_LOCATION: '/stks/check-location',
 
   // Parts
@@ -38,6 +42,9 @@ export const API_ENDPOINTS = {
 
   // Areas
   AREAS: '/Areas',
+
+  // Users
+  USERS: '/Users',
 
   // Customers
   CUSTOMERS: '/Customers',
@@ -54,6 +61,7 @@ export const API_ENDPOINTS = {
   ASSY: '/assy',
   ASSY_FINISH: '/assy/finish',
   ASSY_DELIVERED: '/assy/delivered',
+  ASSY_ACCEPTANCE: '/assy/acceptance',
 
   // Delivery & PO
   PO_NUMBER: '/po-Number',

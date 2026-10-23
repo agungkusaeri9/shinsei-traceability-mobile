@@ -1,19 +1,21 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, RefreshControl } from 'react-native';
-import { ArrowDownToLine, ArrowUpFromLine, ClipboardCheck, TrendingUp } from 'lucide-react-native';
+import {
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  ClipboardCheck,
+  PackageSearch,
+} from 'lucide-react-native';
 
 import { colors } from '../../../theme';
 import DashboardHeader from '../components/DashboardHeader';
 import QuickActionCard from '../components/QuickActionCard';
-import ActivityItem, { Activity } from '../components/ActivityItem';
 import {
   getWarehouseSummary,
   getRecentAcceptances,
-  getTrackingSummary,
 } from '../services/dashboardService';
 import type {
   RecentAcceptanceItem,
-  TrackingSummaryData,
   WarehouseSummaryData,
 } from '../types';
 import { WarehouseSummaryWidget } from '../components/WarehouseSummaryWidget';
@@ -21,7 +23,9 @@ import { RecentAcceptancesWidget } from '../components/RecentAcceptancesWidget';
 import {
   SummaryWidgetSkeleton,
   RecentAcceptancesSkeleton,
+  QuickActionsSkeleton,
 } from '../../../components/Skeleton';
+import { navigateToCheckStk } from '../../../navigation/navigationHelpers';
 
 type Props = {
   navigation: any;
@@ -71,18 +75,15 @@ const WarehouseDashboard: React.FC<Props> = ({
   const [loading, setLoading] = useState(true);
   const [whSummary, setWhSummary] = useState<WarehouseSummaryData | null>(null);
   const [recentAcceptances, setRecentAcceptances] = useState<RecentAcceptanceItem[]>([]);
-  const [trackingSummary, setTrackingSummary] = useState<TrackingSummaryData | null>(null);
 
   const loadData = useCallback(async () => {
     try {
-      const [summaryRes, acceptancesRes, trackingRes] = await Promise.all([
+      const [summaryRes, acceptancesRes] = await Promise.all([
         getWarehouseSummary(),
         getRecentAcceptances(),
-        getTrackingSummary(),
       ]);
       setWhSummary(summaryRes);
       setRecentAcceptances(acceptancesRes);
-      setTrackingSummary(trackingRes);
     } catch (e) {
       console.log('Error loading warehouse dashboard data:', e);
     } finally {
@@ -103,27 +104,49 @@ const WarehouseDashboard: React.FC<Props> = ({
   const renderHeader = () => (
     <View>
       {/* ── Quick Actions ────────────────────────────── */}
-      <Text style={styles.sectionTitle}>Quick Actions</Text>
-      <View style={styles.statsRow}>
-        <QuickActionCard
-          title="Part Acceptance"
-          color={colors.primary}
-          icon={<ClipboardCheck color={colors.primary} size={22} />}
-          onPress={() => navigateToWarehouseScreen(navigation, 'PartAcceptance')}
-        />
-        <QuickActionCard
-          title="Stock In"
-          color={colors.success}
-          icon={<ArrowDownToLine color={colors.success} size={22} />}
-          onPress={() => navigateToWarehouseScreen(navigation, 'StockIn')}
-        />
-        <QuickActionCard
-          title="Stock Out"
-          color={colors.orange}
-          icon={<ArrowUpFromLine color={colors.orange} size={22} />}
-          onPress={() => navigateToWarehouseScreen(navigation, 'StockOut')}
-        />
-      </View>
+      {loading ? (
+        <QuickActionsSkeleton />
+      ) : (
+        <>
+          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <View style={styles.statsRow}>
+            <QuickActionCard
+              title="Part Acceptance"
+              color={colors.primary}
+              icon={<ClipboardCheck color={colors.primary} size={22} />}
+              onPress={() =>
+                navigateToWarehouseScreen(navigation, 'PartAcceptance')
+              }
+            />
+
+            <QuickActionCard
+              title="Stock In"
+              color={colors.success}
+              icon={<ArrowDownToLine color={colors.success} size={22} />}
+              onPress={() =>
+                navigateToWarehouseScreen(navigation, 'StockIn')
+              }
+            />
+
+            <QuickActionCard
+              title="Stock Out"
+              color={colors.orange}
+              icon={<ArrowUpFromLine color={colors.orange} size={22} />}
+              onPress={() =>
+                navigateToWarehouseScreen(navigation, 'StockOut')
+              }
+            />
+          </View>
+          <View style={styles.statsRow}>
+            <QuickActionCard
+              title="Check STK"
+              color={colors.primary}
+              icon={<PackageSearch color={colors.primary} size={22} />}
+              onPress={() => navigateToCheckStk(navigation)}
+            />
+          </View>
+        </>
+      )}
 
       {/* ── Real API Warehouse Summary Widget ────────────────────────────── */}
       {loading ? <SummaryWidgetSkeleton /> : whSummary && <WarehouseSummaryWidget data={whSummary} />}

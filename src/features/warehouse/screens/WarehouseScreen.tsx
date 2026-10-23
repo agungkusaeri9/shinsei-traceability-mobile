@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -21,20 +21,12 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { WarehouseStackParamList } from '../../../types';
 import { colors, shadows } from '../../../theme';
-import { useAuth } from '../../../hooks/useAuth';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  getWarehouseSummary,
-  getRecentAcceptances,
-} from '../../dashboard/services/dashboardService';
-import type {
-  RecentAcceptanceItem,
-  WarehouseSummaryData,
-} from '../../dashboard/types';
 import {
   StatCardsSkeleton,
   ActivityListSkeleton,
 } from '../../../components/Skeleton';
+import { useWarehouseHomeFlow } from '../hooks/useWarehouseHomeFlow';
 
 type Props = {
   navigation: NativeStackNavigationProp<
@@ -44,68 +36,15 @@ type Props = {
 };
 
 const WarehouseScreen: React.FC<Props> = ({ navigation }) => {
-  const { user } = useAuth();
   const insets = useSafeAreaInsets();
-  const [refreshing, setRefreshing] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [whSummary, setWhSummary] = useState<WarehouseSummaryData | null>(null);
-  const [recentAcceptances, setRecentAcceptances] = useState<RecentAcceptanceItem[]>([]);
-
-  // Prevent re-navigation when the Warehouse tab is pressed while already focused.
-  // This fixes the issue where rapid tab presses could trigger navigation to StockOut.
-  useEffect(() => {
-    const parent = navigation.getParent();
-    if (!parent) return;
-
-    const unsubscribe = (parent as any).addListener(
-      'tabPress',
-      (e: any) => {
-        if (navigation.isFocused()) {
-          e.preventDefault();
-        }
-      },
-    );
-
-    return unsubscribe;
-  }, [navigation]);
-
-  const loadData = useCallback(async () => {
-    try {
-      const [summaryRes, acceptancesRes] = await Promise.all([
-        getWarehouseSummary(),
-        getRecentAcceptances(),
-      ]);
-      setWhSummary(summaryRes);
-      setRecentAcceptances(acceptancesRes);
-    } catch (e) {
-      console.log('Error loading warehouse screen data:', e);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
-
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await loadData();
-    setRefreshing(false);
-  }, [loadData]);
-
-  const formatTime = (dateStr: string) => {
-    try {
-      const d = new Date(dateStr);
-      if (isNaN(d.getTime())) return dateStr;
-      return d.toLocaleTimeString('id-ID', {
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-    } catch {
-      return dateStr;
-    }
-  };
+  const {
+    user,
+    refreshing,
+    loading,
+    warehouseSummary: whSummary,
+    recentActivities,
+    onRefresh,
+  } = useWarehouseHomeFlow({ navigation });
 
   return (
     <View style={styles.container}>
@@ -118,9 +57,7 @@ const WarehouseScreen: React.FC<Props> = ({ navigation }) => {
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <View>
           <Text style={styles.greeting}>Warehouse</Text>
-          <Text style={styles.subtitle}>
-            Halo, {user?.name ?? 'Admin'}
-          </Text>
+          <Text style={styles.subtitle}>Halo, {user?.name ?? 'Admin'}</Text>
         </View>
         <View style={styles.roleBadge}>
           <Text style={styles.roleText}>{user?.role ?? 'WH'}</Text>
@@ -145,38 +82,46 @@ const WarehouseScreen: React.FC<Props> = ({ navigation }) => {
         ) : (
           whSummary && (
             <View style={styles.statsGrid}>
-            <View style={[styles.statCard, { borderLeftColor: colors.success }]}>
-              <CheckCircle2 color={colors.success} size={18} />
-              <Text style={styles.statValue}>
-                {whSummary.totalPartAcceptanceReady}
-              </Text>
-              <Text style={styles.statLabel}>STK Ready</Text>
-            </View>
+              <View
+                style={[styles.statCard, { borderLeftColor: colors.success }]}
+              >
+                <CheckCircle2 color={colors.success} size={18} />
+                <Text style={styles.statValue}>
+                  {whSummary.totalPartAcceptanceReady}
+                </Text>
+                <Text style={styles.statLabel}>STK Ready</Text>
+              </View>
 
-            <View style={[styles.statCard, { borderLeftColor: colors.primary }]}>
-              <Package color={colors.primary} size={18} />
-              <Text style={styles.statValue}>
-                {whSummary.totalPartsInWarehouse.toLocaleString()}
-              </Text>
-              <Text style={styles.statLabel}>Di Gudang</Text>
-            </View>
+              <View
+                style={[styles.statCard, { borderLeftColor: colors.primary }]}
+              >
+                <Package color={colors.primary} size={18} />
+                <Text style={styles.statValue}>
+                  {whSummary.totalPartsInWarehouse.toLocaleString()}
+                </Text>
+                <Text style={styles.statLabel}>Di Gudang</Text>
+              </View>
 
-            <View style={[styles.statCard, { borderLeftColor: colors.warning }]}>
-              <Cpu color={colors.warning} size={18} />
-              <Text style={styles.statValue}>
-                {whSummary.totalMaterialFeeding}
-              </Text>
-              <Text style={styles.statLabel}>Feeding</Text>
-            </View>
+              <View
+                style={[styles.statCard, { borderLeftColor: colors.warning }]}
+              >
+                <Cpu color={colors.warning} size={18} />
+                <Text style={styles.statValue}>
+                  {whSummary.totalMaterialFeeding}
+                </Text>
+                <Text style={styles.statLabel}>Feeding</Text>
+              </View>
 
-            <View style={[styles.statCard, { borderLeftColor: colors.orange }]}>
-              <ArrowDownToLine color={colors.orange} size={18} />
-              <Text style={styles.statValue}>
-                {whSummary.totalPartStockIn}
-              </Text>
-              <Text style={styles.statLabel}>Stock In</Text>
+              <View
+                style={[styles.statCard, { borderLeftColor: colors.orange }]}
+              >
+                <ArrowDownToLine color={colors.orange} size={18} />
+                <Text style={styles.statValue}>
+                  {whSummary.totalPartStockIn}
+                </Text>
+                <Text style={styles.statLabel}>Stock In</Text>
+              </View>
             </View>
-          </View>
           )
         )}
 
@@ -242,33 +187,33 @@ const WarehouseScreen: React.FC<Props> = ({ navigation }) => {
             <ActivityListSkeleton />
           </>
         ) : (
-          recentAcceptances.length > 0 && (
-          <>
-            <Text style={styles.sectionTitle}>Aktivitas Terakhir</Text>
-            <View style={styles.activityList}>
-              {recentAcceptances.map(item => (
-                <View key={item.id} style={styles.activityCard}>
-                  <View style={styles.activityLeft}>
-                    <Text style={styles.activityStk}>{item.stkNumber}</Text>
-                    <Text style={styles.activityPart} numberOfLines={1}>
-                      {item.partName}
-                    </Text>
-                  </View>
-                  <View style={styles.activityRight}>
-                    <Text style={styles.activityQty}>
-                      {item.quantity.toLocaleString()} pcs
-                    </Text>
-                    <View style={styles.activityTimeRow}>
-                      <Clock size={11} color={colors.textMuted} />
-                      <Text style={styles.activityTime}>
-                        {formatTime(item.receivedDate)}
+          recentActivities.length > 0 && (
+            <>
+              <Text style={styles.sectionTitle}>Aktivitas Terakhir</Text>
+              <View style={styles.activityList}>
+                {recentActivities.map(item => (
+                  <View key={item.id} style={styles.activityCard}>
+                    <View style={styles.activityLeft}>
+                      <Text style={styles.activityStk}>{item.stkNumber}</Text>
+                      <Text style={styles.activityPart} numberOfLines={1}>
+                        {item.partName}
                       </Text>
                     </View>
+                    <View style={styles.activityRight}>
+                      <Text style={styles.activityQty}>
+                        {item.quantity.toLocaleString()} pcs
+                      </Text>
+                      <View style={styles.activityTimeRow}>
+                        <Clock size={11} color={colors.textMuted} />
+                        <Text style={styles.activityTime}>
+                          {item.receivedTime}
+                        </Text>
+                      </View>
+                    </View>
                   </View>
-                </View>
-              ))}
-            </View>
-          </>
+                ))}
+              </View>
+            </>
           )
         )}
       </ScrollView>
@@ -317,7 +262,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   statCard: {
-    width: '47.5%' as any,
+    width: '47.5%',
     backgroundColor: colors.surface,
     borderRadius: 14,
     padding: 14,

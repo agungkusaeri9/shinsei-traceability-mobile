@@ -20,9 +20,9 @@ export const WarehouseSummaryWidget: React.FC<Props> = ({ data }) => {
             <Package color="#FFFFFF" size={22} />
           </View>
           <View style={styles.mainTextGroup}>
-            <Text style={styles.mainLabel}>Total Part di Gudang</Text>
+            <Text style={styles.mainLabel}>Total Jumlah Part</Text>
             <Text style={styles.mainValue}>
-              {data.totalPartsInWarehouse.toLocaleString()} <Text style={styles.unitText}>STK</Text>
+              {data.totalPartsInWarehouse.toLocaleString()} <Text style={styles.unitText}>Parts</Text>
             </Text>
           </View>
         </View>
@@ -42,19 +42,7 @@ export const WarehouseSummaryWidget: React.FC<Props> = ({ data }) => {
           </View>
           <Text style={styles.cardCount}>{data.totalPartAcceptanceReady} STK</Text>
           <Text style={styles.cardQty}>
-            {data.totalPartAcceptanceReadyQuantity.toLocaleString()} unit ready
-          </Text>
-        </View>
-
-        {/* Material Feeding */}
-        <View style={[styles.gridCard, { borderLeftColor: colors.warning }]}>
-          <View style={styles.cardHeader}>
-            <Cpu color={colors.warning} size={18} />
-            <Text style={styles.cardTitle}>Material Feeding</Text>
-          </View>
-          <Text style={styles.cardCount}>{data.totalMaterialFeeding} STK</Text>
-          <Text style={styles.cardQty}>
-            {data.totalMaterialFeedingQuantity.toLocaleString()} unit feeding
+            {data.totalPartAcceptanceReadyQuantity.toLocaleString()} pcs (STK yang sudah acceptance dan belum di Stock-in)
           </Text>
         </View>
 
@@ -66,9 +54,23 @@ export const WarehouseSummaryWidget: React.FC<Props> = ({ data }) => {
           </View>
           <Text style={styles.cardCount}>{data.totalPartStockIn} STK</Text>
           <Text style={styles.cardQty}>
-            {data.totalPartStockInQuantity.toLocaleString()} unit terproses
+            {data.totalPartStockInQuantity.toLocaleString()} pcs (STK yang sudah Stock-in di Warehouse)
           </Text>
         </View>
+
+        {/* Material Feeding */}
+        <View style={[styles.gridCard, { borderLeftColor: colors.warning }]}>
+          <View style={styles.cardHeader}>
+            <Cpu color={colors.warning} size={18} />
+            <Text style={styles.cardTitle}>Material Feeding</Text>
+          </View>
+          <Text style={styles.cardCount}>{data.totalMaterialFeeding} STK</Text>
+          <Text style={styles.cardQty}>
+            {data.totalMaterialFeedingQuantity.toLocaleString()} pcs (STK yang sudah di-feeding keluar Warehouse)
+          </Text>
+        </View>
+
+
       </View>
     </View>
   );

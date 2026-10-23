@@ -1,142 +1,46 @@
-import React, { useState, useCallback } from 'react';
+import React from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
-  ActivityIndicator,
   RefreshControl,
 } from 'react-native';
 import { CheckCircle2, Factory } from 'lucide-react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useFocusEffect } from '@react-navigation/native';
 
 import { SmtStackParamList } from '../../../types';
 import { colors, shadows } from '../../../theme';
 import SmtHeader from '../components/SmtHeader';
 import Button from '../../../components/Button';
-import SearchableDropdown from '../../warehouse/components/SearchableDropdown';
+import InlineDropdown from '../../warehouse/components/InlineDropdown';
 import InfoBanner from '../../warehouse/components/InfoBanner';
-import {
-  searchOrderLots,
-  fetchOrderByLotNumber,
-  finishSmt,
-} from '../services/smtService';
-import { showSuccess, showError } from '../../../services/toastService';
-import { getErrorMessage } from '../../../utils/errorMessage';
-import type { OrderLotItem, SmtOrderData } from '../types';
+import DetailRow from '../../../components/DetailRow';
+import LoadingRow from '../../../components/LoadingRow';
+import { useSmtFinishFlow } from '../hooks/useSmtFinishFlow';
 
 type Props = {
   navigation: NativeStackNavigationProp<SmtStackParamList, 'Finish'>;
 };
 
 const FinishScreen: React.FC<Props> = ({ navigation }) => {
-  const [orderLots, setOrderLots] = useState<OrderLotItem[]>([]);
-  const [loadingLots, setLoadingLots] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [selectedLotNumber, setSelectedLotNumber] = useState<string | null>(null);
-  const [smtOrderData, setSmtOrderData] = useState<SmtOrderData | null>(null);
-  const [loadingOrderDetail, setLoadingOrderDetail] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
-
-  const loadOrderLots = async () => {
-    setLoadingLots(true);
-    try {
-      const data = await searchOrderLots('', 1, 20);
-      setOrderLots(Array.isArray(data) ? data : []);
-    } catch (error: any) {
-      showError(getErrorMessage(error, 'Gagal memuat data Order Lot'));
-    } finally {
-      setLoadingLots(false);
-    }
-  };
-
-  useFocusEffect(
-    useCallback(() => {
-      loadOrderLots();
-    }, []),
-  );
-
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await loadOrderLots();
-    setRefreshing(false);
-  }, []);
-
-  const dropdownOptions = orderLots.map(item => {
-    const lot = item.lotNumber || String(item.id || '');
-    const meta = [item.customerName, item.productName].filter(Boolean).join(' - ');
-    return {
-      id: lot,
-      label: meta ? `${lot} (${meta})` : lot,
-    };
-  });
-
-  const handleSelectLot = async (lotNumber: string) => {
-    setSelectedLotNumber(lotNumber);
-    setSmtOrderData(null);
-
-    setLoadingOrderDetail(true);
-    try {
-      const response = await fetchOrderByLotNumber(lotNumber);
-      if (response.status && response.data) {
-        setSmtOrderData(response.data);
-      } else {
-        showError(response.message || 'Detail Order Lot tidak ditemukan');
-        setSelectedLotNumber(null);
-      }
-    } catch (error: any) {
-      showError(getErrorMessage(error, 'Gagal mengambil detail Order Lot'));
-      setSelectedLotNumber(null);
-    } finally {
-      setLoadingOrderDetail(false);
-    }
-  };
-
-  const handleClearLot = () => {
-    setSelectedLotNumber(null);
-    setSmtOrderData(null);
-  };
-
-  const handleSubmitFinish = async () => {
-    if (!selectedLotNumber || !smtOrderData) {
-      showError('Pilih Lot Number terlebih dahulu');
-      return;
-    }
-
-    const payload = {
-      lotNumber: selectedLotNumber,
-      model: smtOrderData.product?.name || '',
-      customer: smtOrderData.customer?.name || '',
-    };
-
-    setIsSubmitting(true);
-    try {
-      await finishSmt(payload);
-      showSuccess(`Finish SMT Lot ${selectedLotNumber} berhasil`, 'SMT Finish');
-      setIsSuccess(true);
-    } catch (error: any) {
-      showError(getErrorMessage(error, 'Gagal menyelesaikan proses SMT Finish'));
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleReset = () => {
-    setIsSuccess(false);
-    setSelectedLotNumber(null);
-    setSmtOrderData(null);
-    loadOrderLots();
-  };
-
-  const lineNames = smtOrderData?.details
-    ? [...new Set(smtOrderData.details.map(d => d.line?.name).filter(Boolean))].join(', ')
-    : 'N/A';
-
-  const machineNames = smtOrderData?.details
-    ? [...new Set(smtOrderData.details.map(d => d.machine?.name).filter(Boolean))].join(', ')
-    : 'N/A';
+  const {
+    loadingLots,
+    refreshing,
+    selectedLotNumber,
+    availableProducts,
+    selectedProduct,
+    loadingOrderDetail,
+    isSubmitting,
+    isSuccess,
+    lotOptions,
+    productOptions,
+    onRefresh,
+    handleLotSelection,
+    handleProductSelection,
+    handleSubmitFinish,
+    handleReset,
+  } = useSmtFinishFlow();
 
   return (
     <View style={styles.container}>
@@ -148,7 +52,7 @@ const FinishScreen: React.FC<Props> = ({ navigation }) => {
         onBack={() =>
           navigation.canGoBack()
             ? navigation.goBack()
-            : navigation.navigate('SmtDashboard' as any)
+            : navigation.navigate('SmtHome')
         }
       />
 
@@ -190,41 +94,47 @@ const FinishScreen: React.FC<Props> = ({ navigation }) => {
             />
 
             {loadingLots ? (
-              <View style={styles.loadingField}>
-                <ActivityIndicator size="small" color={colors.primary} />
-                <Text style={styles.loadingText}>Memuat data Order Lot...</Text>
-              </View>
+              <LoadingRow text="Memuat data Order Lot..." />
             ) : (
-              <SearchableDropdown
-                options={dropdownOptions}
-                selectedValue={selectedLotNumber || ''}
-                onSelect={handleSelectLot}
-                onClear={handleClearLot}
+              <InlineDropdown
                 label="Lot Number"
-                placeholder="Cari atau pilih Lot Number..."
+                options={lotOptions}
+                selectedValue={selectedLotNumber || ''}
+                onSelect={handleLotSelection}
+                placeholder="Pilih Lot Number..."
+                searchPlaceholder="Cari Lot Number..."
+                clearable
               />
             )}
 
             {loadingOrderDetail && (
-              <View style={styles.loadingField}>
-                <ActivityIndicator size="small" color={colors.primary} />
-                <Text style={styles.loadingText}>Memuat detail Order Lot...</Text>
-              </View>
+              <LoadingRow text="Memuat detail Order Lot..." />
             )}
 
-            {smtOrderData && !loadingOrderDetail && selectedLotNumber && (
+            {selectedProduct && !loadingOrderDetail && selectedLotNumber && (
               <>
+                {availableProducts.length > 1 && (
+                  <InlineDropdown
+                    label="Pilih Product"
+                    options={productOptions}
+                    selectedValue={String(selectedProduct.id)}
+                    onSelect={handleProductSelection}
+                    placeholder="Pilih Product..."
+                  />
+                )}
+
                 <View style={styles.confirmationCard}>
                   <Text style={styles.cardTitle}>Konfirmasi Data Order Lot</Text>
 
                   <DetailRow label="Lot Number" value={selectedLotNumber} />
-                  <DetailRow label="Customer" value={smtOrderData.customer?.name ?? '-'} />
-                  <DetailRow label="Model" value={smtOrderData.product?.name ?? '-'} />
-                  <DetailRow label="Face" value={smtOrderData.pcbModelFace ?? '-'} />
-                  <DetailRow label="Line" value={lineNames || 'N/A'} />
-                  <DetailRow label="Machine" value={machineNames || 'N/A'} />
-
+                  <DetailRow label="Customer" value={selectedProduct.customerName ?? '-'} />
+                  <DetailRow label="Model" value={selectedProduct.name ?? '-'} />
+                  <DetailRow label="Product Code" value={selectedProduct.code ?? '-'} />
+                  {selectedProduct.description ? (
+                    <DetailRow label="Description" value={selectedProduct.description} />
+                  ) : null}
                 </View>
+
                 <Button
                   title="Submit Finish SMT"
                   onPress={handleSubmitFinish}
@@ -241,26 +151,9 @@ const FinishScreen: React.FC<Props> = ({ navigation }) => {
   );
 };
 
-const DetailRow = ({ label, value }: { label: string; value: string }) => (
-  <View style={styles.detailRow}>
-    <Text style={styles.detailLabel}>{label}</Text>
-    <Text style={styles.detailValue}>{value}</Text>
-  </View>
-);
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   scrollContent: { padding: 20, paddingBottom: 40 },
-  loadingField: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 12,
-  },
-  loadingText: {
-    fontSize: 13,
-    color: colors.textMuted,
-  },
   confirmationCard: {
     backgroundColor: colors.surface,
     borderRadius: 14,
@@ -276,17 +169,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: `${colors.textMuted}20`,
     paddingBottom: 8,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 6,
-  },
-  detailLabel: { fontSize: 13, color: colors.textSecondary },
-  detailValue: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textPrimary,
   },
   submitBtn: {
     marginTop: 20,

@@ -6,6 +6,8 @@ import {
   CheckCircle2,
   Cpu,
   Layers,
+  PackageCheck,
+  PackageSearch,
 } from 'lucide-react-native';
 
 import { colors } from '../../../theme';
@@ -13,6 +15,7 @@ import DashboardHeader from '../components/DashboardHeader';
 import DashboardCard from '../components/DashboardCard';
 import QuickActionCard from '../components/QuickActionCard';
 import ActivityItem, { Activity } from '../components/ActivityItem';
+import { navigateToCheckStk } from '../../../navigation/navigationHelpers';
 
 type Props = {
   navigation: any;
@@ -97,34 +100,50 @@ const SmtDashboard: React.FC<Props> = ({
       </Text>
       <View style={styles.statsRow}>
         <QuickActionCard
+          title="Acceptance"
+          color={colors.primary}
+          icon={<PackageCheck color={colors.primary} size={22} />}
+          onPress={() => navigateToSmtScreen(navigation, 'SmtAcceptance')}
+        />
+        <QuickActionCard
           title="Part Register"
           color={colors.primary}
           icon={<ClipboardList color={colors.primary} size={22} />}
           onPress={() => navigateToSmtScreen(navigation, 'PartRegister')}
         />
+      </View>
+      <View style={styles.statsRow}>
         <QuickActionCard
           title="Part Changing"
           color={colors.orange}
           icon={<ArrowLeftRight color={colors.orange} size={22} />}
           onPress={() => navigateToSmtScreen(navigation, 'PartChanging')}
         />
-      </View>
-      <View style={styles.statsRow}>
         <QuickActionCard
           title="Finish"
           color={colors.success}
           icon={<CheckCircle2 color={colors.success} size={22} />}
           onPress={() => navigateToSmtScreen(navigation, 'Finish')}
         />
-        {!showCustomHeader && (
+      </View>
+      <View style={styles.statsRow}>
+        <QuickActionCard
+          title="Check STK"
+          color={colors.primary}
+          icon={<PackageSearch color={colors.primary} size={22} />}
+          onPress={() => navigateToCheckStk(navigation)}
+        />
+      </View>
+      {!showCustomHeader && (
+        <View style={styles.statsRow}>
           <QuickActionCard
             title="Profile"
             color={colors.purple}
             icon={<Layers color={colors.purple} size={22} />}
             onPress={() => navigation.navigate('Profile')}
           />
-        )}
-      </View>
+        </View>
+      )}
 
       {/* ── SMT Stats ──────────────────────────────────── */}
       <Text style={styles.sectionTitle}>Ringkasan SMT</Text>

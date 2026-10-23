@@ -9,6 +9,34 @@ export interface User {
   avatar?: string;
 }
 
+export interface Area {
+  id: number;
+  name: string;
+  description?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Role object embedded in the /api/auth/me response */
+export interface UserRole {
+  id: number;
+  name: string;
+  description: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Response payload of GET /api/auth/me */
+export interface UserDetail {
+  id: number;
+  name: string;
+  code: string;
+  username: string;
+  role: UserRole;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface AuthState {
   user: User | null;
   token: string | null;
@@ -19,18 +47,20 @@ export interface AuthState {
 // ─── API Types ────────────────────────────────────────────────────────────────
 
 export interface ApiResponse<T> {
-  data: T;
+  status: boolean;
   message: string;
-  success: boolean;
+  data: T;
+  pagination?: Pagination;
 }
 
-export interface PaginatedResponse<T> {
-  data: T[];
-  total: number;
+export interface Pagination {
   page: number;
   limit: number;
+  totalPages: number;
+  total: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
 }
-
 // ─── Service Types ───────────────────────────────────────────────────────────
 
 export interface PingResult {
@@ -43,6 +73,7 @@ export interface PingResult {
 export type RootStackParamList = {
   Auth: undefined;
   App: undefined;
+  CheckStk: undefined;
 };
 
 export type AuthStackParamList = {
@@ -73,10 +104,12 @@ export type AreaStackParamList = {
   PartRegister: undefined;
   PartChanging: undefined;
   Finish: undefined;
+  SmtAcceptance: undefined;
   QaAssyHome: undefined;
   QaRegister: undefined;
   QaAddPart: undefined;
   QaFinish: undefined;
+  QaAcceptance: undefined;
   DeliveryHome: undefined;
 };
 
@@ -86,6 +119,7 @@ export type DeliveryStackParamList = {
 
 export type ProfileStackParamList = {
   ProfileHome: undefined;
+  AccountDetail: undefined;
   Settings: undefined;
   ChangeIPAddress: undefined;
 };
@@ -95,6 +129,7 @@ export type SmtStackParamList = {
   PartRegister: undefined;
   PartChanging: undefined;
   Finish: undefined;
+  SmtAcceptance: undefined;
 };
 
 export type QaAssyStackParamList = {
@@ -102,6 +137,7 @@ export type QaAssyStackParamList = {
   QaRegister: undefined;
   QaAddPart: undefined;
   QaFinish: undefined;
+  QaAcceptance: undefined;
 };
 
 import { NavigatorScreenParams } from '@react-navigation/native';

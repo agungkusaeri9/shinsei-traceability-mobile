@@ -1,3 +1,5 @@
+import type { ApiResponse } from '../../types';
+
 export interface QaRegisterData {
   barcode: string;
   lotNumber: string;
@@ -32,9 +34,20 @@ export interface QaAssyResultData {
   updatedAt: string;
 }
 
-export interface QaAssyResponse {
-  status: boolean;
-  message: string;
-  data: QaAssyResultData;
+export type QaAssyResponse = ApiResponse<QaAssyResultData>;
+
+export interface QaAcceptancePayload {
+  stkNumber: string;
 }
 
+export interface QaAcceptanceData {
+  id: number;
+  partBatchId: number;
+  areaId: number;
+  areaName: string | null;
+  action: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type QaAcceptanceResponse = ApiResponse<QaAcceptanceData>;

@@ -1,19 +1,30 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { LoginFormValues, LoginFormErrors } from '../types';
 import { loginService } from '../services/authService';
 import { useAuth } from '../../../hooks/useAuth';
 import { showError } from '../../../services/toastService';
 import { getErrorMessage } from '../../../utils/errorMessage';
+import { isBaseUrlSet } from '../../../utils/baseUrl';
 
 export const useLogin = () => {
   const { setAuth, isLoading, setLoading } = useAuth();
 
   const [form, setForm] = useState<LoginFormValues>({
-    username: '', // 'superadmin'
-    password: '', // 'password'
+    username: 'superadmin', // 'superadmin'
+    password: 'password', // 'password'
   });
 
   const [errors, setErrors] = useState<LoginFormErrors>({});
+  const [urlNotSet, setUrlNotSet] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      isBaseUrlSet()
+        .then(isSet => setUrlNotSet(!isSet))
+        .catch(() => setUrlNotSet(true));
+    }, []),
+  );
 
   const validate = (): boolean => {
     const newErrors: LoginFormErrors = {};
@@ -50,7 +61,7 @@ export const useLogin = () => {
       };
       setAuth(user, token);
       return true;
-    } catch (error: any) {
+    } catch (error) {
       const msg = getErrorMessage(error, 'Login gagal. Coba lagi.');
       showError(msg);
       // setErrors({ username: msg });
@@ -64,6 +75,7 @@ export const useLogin = () => {
     form,
     errors,
     isLoading,
+    urlNotSet,
     handleChange,
     handleLogin,
   };

@@ -70,6 +70,30 @@ export const StatCardsSkeleton: React.FC = () => (
   </View>
 );
 
+/** 2×2 stat card skeleton for SuperAdmin dashboard (matches statsRow layout) */
+export const SuperAdminStatsSkeleton: React.FC = () => (
+  <View>
+    <View style={sStyles.superAdminStatsRow}>
+      {[0, 1].map(i => (
+        <View key={i} style={sStyles.superAdminStatCard}>
+          <Skeleton width={40} height={40} borderRadius={10} />
+          <Skeleton width={48} height={28} borderRadius={6} style={{ marginTop: 12 }} />
+          <Skeleton width={64} height={12} borderRadius={4} style={{ marginTop: 4 }} />
+        </View>
+      ))}
+    </View>
+    <View style={sStyles.superAdminStatsRow}>
+      {[2, 3].map(i => (
+        <View key={i} style={sStyles.superAdminStatCard}>
+          <Skeleton width={40} height={40} borderRadius={10} />
+          <Skeleton width={48} height={28} borderRadius={6} style={{ marginTop: 12 }} />
+          <Skeleton width={64} height={12} borderRadius={4} style={{ marginTop: 4 }} />
+        </View>
+      ))}
+    </View>
+  </View>
+);
+
 /** Compact activity row skeleton (for WarehouseScreen recent list) */
 export const ActivityListSkeleton: React.FC<{ count?: number }> = ({
   count = 3,
@@ -144,7 +168,42 @@ export const RecentAcceptancesSkeleton: React.FC<{ count?: number }> = ({
   </View>
 );
 
+/** Quick actions skeleton (for WarehouseDashboard) */
+export const QuickActionsSkeleton: React.FC = () => (
+  <View style={sStyles.quickActionsRow}>
+    {[0, 1, 2].map(i => (
+      <View key={i} style={sStyles.quickActionCard}>
+        {/* Icon placeholder */}
+        <Skeleton width={44} height={44} borderRadius={12} />
+
+        {/* Title placeholder */}
+        <Skeleton
+          width="80%"
+          height={12}
+          borderRadius={4}
+          style={{ marginTop: 12 }}
+        />
+      </View>
+    ))}
+  </View>
+);
+
 const sStyles = StyleSheet.create({
+  quickActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 16,
+  },
+  quickActionCard: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    paddingVertical: 16,
+    paddingHorizontal: 8,
+    minHeight: 110,
+  },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 },
   statCard: {
     width: '47.5%' as any,
@@ -172,4 +231,12 @@ const sStyles = StyleSheet.create({
     marginBottom: 10,
   },
   acceptanceCard: { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 14 },
+  superAdminStatsRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
+  superAdminStatCard: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    alignItems: 'flex-start',
+  },
 });

@@ -1,257 +1,63 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TextInput,
-  TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
-  Truck,
-  CheckCircle2,
-  Info,
-  RefreshCw,
   Box as BoxIcon,
-  ChevronRight,
-  Send,
   Check,
+  CheckCircle2,
+  ChevronRight,
+  Info,
   PackageCheck,
+  RefreshCw,
   RotateCcw,
+  Send,
+  Truck,
 } from 'lucide-react-native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useFocusEffect } from '@react-navigation/native';
 
+import LoadingRow from '../../../components/LoadingRow';
 import { colors, shadows } from '../../../theme';
 import QaAssyHeader from '../../qaAssy/components/QaAssyHeader';
 import ScanZone from '../../qaAssy/components/ScanZone';
-import SearchableDropdown from '../../warehouse/components/SearchableDropdown';
-import {
-  getPoNumbers,
-  getBoxesByPo,
-  submitDelivery,
-} from '../services/deliveryService';
-import type { BoxItem, OrderPoItem } from '../types';
-import { showSuccess, showError, showInfo } from '../../../services/toastService';
-import { getErrorMessage } from '../../../utils/errorMessage';
+import InlineDropdown from '../../warehouse/components/InlineDropdown';
+import { useDeliveryFlow } from '../hooks/useDeliveryFlow';
 
 type Props = {
-  navigation: NativeStackNavigationProp<any, any>;
+  navigation: NativeStackNavigationProp<Record<string, object | undefined>>;
 };
 
 const DeliveryScreen: React.FC<Props> = ({ navigation }) => {
-  const barcodeRef = useRef<TextInput>(null);
-  const inputValueRef = useRef('');
-  const isDropdownFocusedRef = useRef(false);
-  const [scanBuffer, setScanBuffer] = useState('');
-
-  // PO List state
-  const [poList, setPoList] = useState<OrderPoItem[]>([]);
-  const [isLoadingPoList, setIsLoadingPoList] = useState(false);
-
-  // Selected PO state
-  const [selectedPo, setSelectedPo] = useState<string | null>(null);
-  const [isLoadingPoDetail, setIsLoadingPoDetail] = useState(false);
-  const [expectedBoxes, setExpectedBoxes] = useState<BoxItem[]>([]);
-  const [scannedBoxes, setScannedBoxes] = useState<string[]>([]);
-
-  // Delivery Submit state
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [lastDelivered, setLastDelivered] = useState<{
-    poNumber: string;
-    boxes: string[];
-    timestamp: string;
-  } | null>(null);
-
-  const focusScanner = useCallback(() => {
-    if (isDropdownFocusedRef.current) return;
-    requestAnimationFrame(() => {
-      if (!isDropdownFocusedRef.current) {
-        barcodeRef.current?.focus();
-      }
-    });
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      const t = setTimeout(() => focusScanner(), 200);
-      return () => clearTimeout(t);
-    }, [focusScanner]),
-  );
-
-  // Fetch PO List on mount (/api/orderpos)
-  const fetchPoList = async () => {
-    setIsLoadingPoList(true);
-    try {
-      const data = await getPoNumbers();
-      setPoList(data);
-    } catch (error: any) {
-      showError(getErrorMessage(error, 'Gagal mengambil daftar PO Number'));
-    } finally {
-      setIsLoadingPoList(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchPoList();
-  }, []);
-
-  // Dropdown options for PO Selection
-  const poDropdownOptions = useMemo(
-    () =>
-      poList.map((po) => ({
-        id: po.poNumber,
-        label: po.poNumber,
-      })),
-    [poList]
-  );
-
-  // Handle selecting a PO Number
-  const handleSelectPo = async (poNumber: string) => {
-    if (!poNumber) return;
-    setSelectedPo(poNumber);
-    setIsLoadingPoDetail(true);
-    setExpectedBoxes([]);
-    setScannedBoxes([]);
-    try {
-      const boxes = await getBoxesByPo(poNumber);
-      setExpectedBoxes(boxes);
-      showSuccess(`PO ${poNumber} dipilih. ${boxes.length} box didapatkan.`, 'PO Terpilih');
-    } catch (error: any) {
-      showError(getErrorMessage(error, `Gagal mengambil detail box PO ${poNumber}`));
-    } finally {
-      setIsLoadingPoDetail(false);
-      focusScanner();
-    }
-  };
-
-  // Reset PO Selection
-  const handleResetPo = () => {
-    inputValueRef.current = '';
-    setSelectedPo(null);
-    setExpectedBoxes([]);
-    setScannedBoxes([]);
-    setScanBuffer('');
-    focusScanner();
-  };
-
-  // Process barcode scan
-  const handleScanSubmit = (rawValue: string) => {
-    const raw = rawValue.trim();
-    if (!raw) return;
-
-    // If no PO selected yet, try auto-match PO Number
-    if (!selectedPo) {
-      const matchedPo = poList.find(
-        (po) => po.poNumber.toLowerCase() === raw.toLowerCase()
-      );
-      if (matchedPo) {
-        handleSelectPo(matchedPo.poNumber);
-      } else {
-        showInfo(`Barcode "${raw}" di-scan. Silakan pilih PO Number terlebih dahulu.`);
-      }
-      return;
-    }
-
-    // Process box scan for active PO — box harus ada di daftar box PO
-    const matchedBox = expectedBoxes.find(
-      (b) => b.name.toLowerCase() === raw.toLowerCase()
-    );
-
-    if (!matchedBox) {
-      showError(`Box "${raw}" tidak ada dalam daftar box PO ${selectedPo}.`);
-      focusScanner();
-      return;
-    }
-
-    if (scannedBoxes.includes(matchedBox.name)) {
-      showInfo(`Box "${matchedBox.name}" sudah di-scan.`);
-      focusScanner();
-      return;
-    }
-
-    // Add box to scanned state
-    setScannedBoxes((prev) => [...prev, matchedBox.name]);
-    showSuccess(`Box "${matchedBox.name}" terverifikasi!`, 'Box Ter-scan');
-    focusScanner();
-  };
-
-  // Manual click hanya untuk menghapus box yang sudah di-scan.
-  // Box tidak bisa ditandai ter-scan secara manual — harus melalui scan barcode.
-  const handleRemoveScannedBox = (boxName: string) => {
-    if (!boxName) return;
-    setScannedBoxes((prev) => prev.filter((b) => b !== boxName));
-    showInfo(`Scan box "${boxName}" dihapus.`);
-  };
-
-  // Submit Delivery (per-box: { boxName })
-  const handleSubmitDelivery = async () => {
-    if (!selectedPo) {
-      showError('Pilih PO Number terlebih dahulu');
-      return;
-    }
-
-    if (scannedBoxes.length === 0) {
-      showError('Scan minimal 1 box sebelum submit delivery');
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      const res = await submitDelivery({
-        boxNames: scannedBoxes,
-      });
-
-      showSuccess(res.message || 'Delivery berhasil disubmit!', 'Delivery Berhasil');
-      setLastDelivered({
-        poNumber: selectedPo,
-        boxes: scannedBoxes,
-        timestamp: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
-      });
-
-      // Clear selection after submit
-      handleResetPo();
-      fetchPoList();
-    } catch (error: any) {
-      showError(getErrorMessage(error, 'Gagal mengirim data delivery'));
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const progressPercent =
-    expectedBoxes.length > 0
-      ? Math.min(100, Math.round((scannedBoxes.length / expectedBoxes.length) * 100))
-      : scannedBoxes.length > 0
-        ? 100
-        : 0;
+  const {
+    poList,
+    isLoadingPoList,
+    selectedPo,
+    isLoadingPoDetail,
+    expectedBoxes,
+    scannedBoxes,
+    lastScannedBox,
+    isSubmitting,
+    lastDelivered,
+    poDropdownOptions,
+    progressPercent,
+    canSubmit,
+    loadPoList,
+    handlePoSelection,
+    handleResetPo,
+    handleRemoveScannedBox,
+    handleSubmitDelivery,
+    handleDropdownToggle,
+    isBoxScanned,
+  } = useDeliveryFlow();
 
   return (
     <View style={styles.container}>
-      <TextInput
-        ref={barcodeRef}
-        style={styles.hiddenInput}
-        value={scanBuffer}
-        onChangeText={(text) => {
-          inputValueRef.current = text;
-          setScanBuffer(text);
-        }}
-        onSubmitEditing={() => {
-          const val = inputValueRef.current;
-          inputValueRef.current = '';
-          setScanBuffer('');
-          handleScanSubmit(val);
-        }}
-        autoFocus
-        showSoftInputOnFocus={false}
-        blurOnSubmit={false}
-        returnKeyType="done"
-        onBlur={() => setTimeout(focusScanner, 100)}
-        caretHidden
-      />
-
       <QaAssyHeader
         title="Delivery"
         subtitle={selectedPo ? `PO: ${selectedPo}` : 'Pilih PO & Scan Box'}
@@ -260,10 +66,9 @@ const DeliveryScreen: React.FC<Props> = ({ navigation }) => {
         rightSlot={
           selectedPo ? (
             <TouchableOpacity
-              style={styles.headerResetBtn}
+              style={styles.headerResetButton}
               onPress={handleResetPo}
-              activeOpacity={0.7}
-            >
+              activeOpacity={0.7}>
               <RotateCcw color={colors.textInverse} size={16} />
               <Text style={styles.headerResetText}>Ganti PO</Text>
             </TouchableOpacity>
@@ -278,81 +83,75 @@ const DeliveryScreen: React.FC<Props> = ({ navigation }) => {
         refreshControl={
           <RefreshControl
             refreshing={isLoadingPoList}
-            onRefresh={fetchPoList}
+            onRefresh={loadPoList}
             colors={[colors.warning]}
           />
-        }
-      >
-        {/* Step 1: PO Selection View with SearchableDropdown */}
+        }>
         {!selectedPo ? (
           <View style={styles.poSelectSection}>
             <View style={styles.sectionHeaderRow}>
               <Text style={styles.sectionTitle}>Pilih PO Number</Text>
               <TouchableOpacity
-                style={styles.refreshBtn}
-                onPress={fetchPoList}
-                disabled={isLoadingPoList}
-              >
+                style={styles.refreshButton}
+                onPress={loadPoList}
+                disabled={isLoadingPoList}>
                 <RefreshCw
                   color={colors.textSecondary}
                   size={16}
-                  style={isLoadingPoList ? styles.spinIcon : undefined}
+                  style={isLoadingPoList ? styles.loadingIcon : undefined}
                 />
               </TouchableOpacity>
             </View>
 
             {isLoadingPoList ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator color={colors.warning} size="small" />
-                <Text style={styles.loadingLabel}>Memuat data PO Number...</Text>
-              </View>
+              <LoadingRow text="Memuat daftar PO..." color={colors.warning} />
             ) : (
               <>
-                <SearchableDropdown
-                  options={poDropdownOptions}
-                  selectedValue={selectedPo || ''}
-                  onSelect={handleSelectPo}
-                  onClear={handleResetPo}
-                  onFocus={() => {
-                    isDropdownFocusedRef.current = true;
-                  }}
-                  onBlur={() => {
-                    isDropdownFocusedRef.current = false;
-                    focusScanner();
-                  }}
+                <InlineDropdown
                   label="Cari & Pilih PO"
-                  placeholder="Ketik atau pilih PO Number..."
+                  options={poDropdownOptions}
+                  selectedValue=""
+                  onSelect={handlePoSelection}
+                  placeholder="Pilih PO Number..."
+                  searchPlaceholder="Cari PO Number..."
+                  clearable
+                  onToggle={handleDropdownToggle}
                 />
 
                 {poList.length === 0 ? (
                   <View style={styles.emptyContainer}>
                     <PackageCheck color={colors.textMuted} size={36} />
                     <Text style={styles.emptyTitle}>Tidak Ada Data PO</Text>
-                    <Text style={styles.emptySub}>
+                    <Text style={styles.emptySubtitle}>
                       Belum ada data PO Number dari endpoint /api/orderpos.
                     </Text>
-                    <TouchableOpacity style={styles.retryBtn} onPress={fetchPoList}>
-                      <Text style={styles.retryBtnText}>Muat Ulang Data</Text>
+                    <TouchableOpacity
+                      style={styles.retryButton}
+                      onPress={loadPoList}>
+                      <Text style={styles.retryButtonText}>Muat Ulang Data</Text>
                     </TouchableOpacity>
                   </View>
                 ) : (
-                  <View style={{ marginTop: 16 }}>
+                  <View style={styles.poListSection}>
                     <Text style={styles.poGridTitle}>Daftar PO Terbaru</Text>
                     <View style={styles.poGrid}>
-                      {poList.map((po) => (
+                      {poList.map(po => (
                         <TouchableOpacity
                           key={po.id || po.poNumber}
                           style={styles.poCard}
-                          onPress={() => handleSelectPo(po.poNumber)}
-                          activeOpacity={0.7}
-                        >
+                          onPress={() => handlePoSelection(po.poNumber)}
+                          activeOpacity={0.7}>
                           <View style={styles.poCardLeft}>
                             <View style={styles.poIconBadge}>
                               <BoxIcon color={colors.indigo} size={18} />
                             </View>
-                            <View style={{ flex: 1 }}>
-                              <Text style={styles.poNumberText}>{po.poNumber}</Text>
-                              <Text style={styles.poSubtitle}>Klik untuk pilih PO</Text>
+                            <View style={styles.flex}>
+                              <Text style={styles.poNumberText}>
+                                {po.poNumber}
+                              </Text>
+                              <Text style={styles.poSubtitle}>
+                                Tap untuk pilih PO
+                              </Text>
                             </View>
                           </View>
                           <ChevronRight color={colors.arrowMuted} size={20} />
@@ -365,62 +164,54 @@ const DeliveryScreen: React.FC<Props> = ({ navigation }) => {
             )}
           </View>
         ) : (
-          /* Step 2 & 3: Active PO Detail, Box Scanning & Submission View */
           <View style={styles.activePoSection}>
-            {/* Selected PO Summary Card */}
             <View style={styles.poSummaryCard}>
               <View style={styles.poSummaryHeader}>
-                <View style={{ flex: 1 }}>
+                <View style={styles.flex}>
                   <Text style={styles.poSummaryLabel}>PO Number Terpilih</Text>
                   <Text style={styles.poSummaryValue}>{selectedPo}</Text>
                 </View>
-                <View style={styles.badgeBoxCount}>
-                  <Text style={styles.badgeBoxCountText}>
+                <View style={styles.boxCountBadge}>
+                  <Text style={styles.boxCountBadgeText}>
                     {scannedBoxes.length} / {expectedBoxes.length} Box
                   </Text>
                 </View>
               </View>
 
-              {/* Progress Bar */}
-              <View style={styles.progressBg}>
+              <View style={styles.progressBackground}>
                 <View
                   style={[
                     styles.progressFill,
                     {
                       width: `${progressPercent}%`,
                       backgroundColor:
-                        progressPercent === 100 ? colors.success : colors.warning,
+                        progressPercent === 100
+                          ? colors.success
+                          : colors.warning,
                     },
                   ]}
                 />
               </View>
             </View>
 
-            {/* Instruction Banner */}
             <View style={styles.infoRow}>
               <Info color={colors.indigo} size={15} />
               <Text style={styles.infoText}>
-                Scan semua box terdaftar pada PO ini.{'\n'}
-                Tekan item box untuk tandai/batal scan secara manual.
+                Scan box menggunakan trigger fisik KEYENCE. Tap box yang sudah
+                ter-scan untuk menghapusnya.
               </Text>
             </View>
 
-            {/* Scanner Zone */}
             <ScanZone
-              label="Box Barcode Scanner"
-              scannedValue={null}
-              onPress={focusScanner}
+              label="KEYENCE Box Scanner"
+              scannedValue={lastScannedBox}
               accentColor={colors.warning}
-              placeholder="Arahkan scanner ke barcode box..."
+              placeholder="Tekan trigger dan scan barcode box..."
             />
 
             {isLoadingPoDetail ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator color={colors.warning} size="small" />
-                <Text style={styles.loadingLabel}>Mengambil daftar box PO dari server...</Text>
-              </View>
+              <LoadingRow text="Memuat detail PO..." color={colors.warning} />
             ) : (
-              /* Box Checklist */
               <View style={styles.boxListSection}>
                 <Text style={styles.sectionTitle}>
                   Daftar Box ({scannedBoxes.length}/{expectedBoxes.length})
@@ -434,42 +225,27 @@ const DeliveryScreen: React.FC<Props> = ({ navigation }) => {
                     </Text>
                   </View>
                 ) : (
-                  expectedBoxes.map((boxItem) => {
-                    const isScanned = scannedBoxes.includes(boxItem.name);
-
-                    // Box belum di-scan: tidak bisa diklik — tandai hanya dengan scan barcode
-                    if (!isScanned) {
-                      return (
-                        <View
-                          key={boxItem.id || boxItem.name}
-                          style={styles.boxItemCard}
-                        >
-                          <View style={styles.boxCheckCircle} />
-                          <View style={{ flex: 1 }}>
-                            <Text style={styles.boxNameText}>{boxItem.name}</Text>
-                            <Text style={styles.boxStatusText}>Belum di-scan</Text>
-                          </View>
-                        </View>
-                      );
-                    }
-
-                    // Box sudah di-scan: klik hanya untuk menghapus
-                    return (
+                  expectedBoxes.map(boxItem => {
+                    const isScanned = isBoxScanned(boxItem.name);
+                    return isScanned ? (
                       <TouchableOpacity
                         key={boxItem.id || boxItem.name}
                         style={[styles.boxItemCard, styles.boxItemCardScanned]}
                         onPress={() => handleRemoveScannedBox(boxItem.name)}
-                        activeOpacity={0.7}
-                      >
+                        activeOpacity={0.7}>
                         <View
-                          style={[styles.boxCheckCircle, styles.boxCheckCircleActive]}
-                        >
+                          style={[
+                            styles.boxCheckCircle,
+                            styles.boxCheckCircleActive,
+                          ]}>
                           <Check color={colors.textInverse} size={14} />
                         </View>
-                        <View style={{ flex: 1 }}>
+                        <View style={styles.flex}>
                           <Text
-                            style={[styles.boxNameText, styles.boxNameTextScanned]}
-                          >
+                            style={[
+                              styles.boxNameText,
+                              styles.boxNameTextScanned,
+                            ]}>
                             {boxItem.name}
                           </Text>
                           <Text style={styles.boxStatusText}>
@@ -480,52 +256,60 @@ const DeliveryScreen: React.FC<Props> = ({ navigation }) => {
                           <Text style={styles.scannedBadgeText}>OK</Text>
                         </View>
                       </TouchableOpacity>
+                    ) : (
+                      <View
+                        key={boxItem.id || boxItem.name}
+                        style={styles.boxItemCard}>
+                        <View style={styles.boxCheckCircle} />
+                        <View style={styles.flex}>
+                          <Text style={styles.boxNameText}>{boxItem.name}</Text>
+                          <Text style={styles.boxStatusText}>Belum di-scan</Text>
+                        </View>
+                      </View>
                     );
                   })
                 )}
               </View>
             )}
 
-            {/* Action Button */}
             <TouchableOpacity
               style={[
-                styles.submitBtn,
-                (scannedBoxes.length === 0 || isSubmitting) && styles.submitBtnDisabled,
+                styles.submitButton,
+                !canSubmit && styles.submitButtonDisabled,
               ]}
               onPress={handleSubmitDelivery}
-              disabled={scannedBoxes.length === 0 || isSubmitting}
-              activeOpacity={0.8}
-            >
-              {isSubmitting ? (
-                <View style={styles.submitBtnRow}>
+              disabled={!canSubmit}
+              activeOpacity={0.8}>
+              <View style={styles.submitButtonRow}>
+                {isSubmitting ? (
                   <ActivityIndicator color={colors.textInverse} size="small" />
-                  <Text style={styles.submitBtnText}>Mengirim Delivery...</Text>
-                </View>
-              ) : (
-                <View style={styles.submitBtnRow}>
+                ) : (
                   <Send color={colors.textInverse} size={18} />
-                  <Text style={styles.submitBtnText}>
-                    Submit Delivery ({scannedBoxes.length} Box)
-                  </Text>
-                </View>
-              )}
+                )}
+                <Text style={styles.submitButtonText}>
+                  {isSubmitting
+                    ? 'Mengirim Delivery...'
+                    : `Submit Delivery (${scannedBoxes.length} Box)`}
+                </Text>
+              </View>
             </TouchableOpacity>
           </View>
         )}
 
-        {/* Last Delivered Card */}
-        {lastDelivered && !isSubmitting && (
+        {lastDelivered && !isSubmitting ? (
           <View style={styles.lastCard}>
             <CheckCircle2 color={colors.success} size={20} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.lastLabel}>Delivery Terakhir ({lastDelivered.timestamp})</Text>
+            <View style={styles.flex}>
+              <Text style={styles.lastLabel}>
+                Delivery Terakhir ({lastDelivered.timestamp})
+              </Text>
               <Text style={styles.lastValue}>PO: {lastDelivered.poNumber}</Text>
               <Text style={styles.lastSubValue}>
                 Box: {lastDelivered.boxes.join(', ')}
               </Text>
             </View>
           </View>
-        )}
+        ) : null}
       </ScrollView>
     </View>
   );
@@ -533,203 +317,218 @@ const DeliveryScreen: React.FC<Props> = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
+  flex: { flex: 1 },
   content: { padding: 16, paddingBottom: 40 },
-  hiddenInput: { position: 'absolute', width: 1, height: 1, opacity: 0 },
-
-  // Header button
-  headerResetBtn: {
-    flexDirection: 'row',
+  headerResetButton: {
     alignItems: 'center',
-    gap: 4,
     backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 8,
+    flexDirection: 'row',
+    gap: 4,
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 8,
   },
-  headerResetText: { fontSize: 12, fontWeight: '600', color: colors.textInverse },
-
-  // Section Header
+  headerResetText: {
+    color: colors.textInverse,
+    fontSize: 12,
+    fontWeight: '600',
+  },
   poSelectSection: { flex: 1 },
   sectionHeaderRow: {
-    flexDirection: 'row',
     alignItems: 'center',
+    flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 12,
   },
-  sectionTitle: { fontSize: 15, fontWeight: '700', color: colors.textPrimary },
-  refreshBtn: { padding: 6 },
-  spinIcon: { opacity: 0.5 },
-
-  // Loading & Empty state
-  loadingContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 32,
-    gap: 8,
+  sectionTitle: { color: colors.textPrimary, fontSize: 15, fontWeight: '700' },
+  refreshButton: { padding: 6 },
+  loadingIcon: { opacity: 0.5 },
+  emptyContainer: { alignItems: 'center', marginTop: 16, padding: 32 },
+  emptyTitle: {
+    color: colors.textPrimary,
+    fontSize: 16,
+    fontWeight: '700',
+    marginTop: 12,
   },
-  loadingLabel: { fontSize: 13, color: colors.textSecondary },
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 36,
-    paddingHorizontal: 20,
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginTop: 16,
+  emptySubtitle: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    marginTop: 4,
+    textAlign: 'center',
   },
-  emptyTitle: { fontSize: 16, fontWeight: '700', color: colors.textPrimary, marginTop: 12 },
-  emptySub: { fontSize: 13, color: colors.textSecondary, textAlign: 'center', marginTop: 4 },
-  retryBtn: {
-    marginTop: 16,
+  retryButton: {
     backgroundColor: `${colors.warning}15`,
+    borderRadius: 8,
+    marginTop: 16,
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 8,
   },
-  retryBtnText: { fontSize: 13, fontWeight: '600', color: colors.warning },
-
-  // PO Grid / Cards
-  poGridTitle: { fontSize: 13, fontWeight: '700', color: colors.textSecondary, marginBottom: 8 },
+  retryButtonText: { color: colors.warning, fontSize: 13, fontWeight: '600' },
+  poListSection: { marginTop: 16 },
+  poGridTitle: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
   poGrid: { gap: 10 },
   poCard: {
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 14,
-    borderWidth: 1,
     borderColor: colors.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: 14,
     ...shadows.sm,
   },
-  poCardLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
+  poCardLeft: { alignItems: 'center', flex: 1, flexDirection: 'row', gap: 12 },
   poIconBadge: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    backgroundColor: colors.iconBadge,
     alignItems: 'center',
+    backgroundColor: colors.iconBadge,
+    borderRadius: 10,
+    height: 38,
     justifyContent: 'center',
+    width: 38,
   },
-  poNumberText: { fontSize: 15, fontWeight: '700', color: colors.textPrimary },
-  poSubtitle: { fontSize: 12, color: colors.textMuted, marginTop: 1 },
-
-  // Active PO Section
+  poNumberText: { color: colors.textPrimary, fontSize: 15, fontWeight: '700' },
+  poSubtitle: { color: colors.textMuted, fontSize: 12, marginTop: 1 },
   activePoSection: { gap: 14 },
   poSummaryCard: {
     backgroundColor: colors.surface,
-    borderRadius: 14,
-    padding: 16,
-    borderWidth: 1,
     borderColor: colors.border,
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 16,
     ...shadows.sm,
   },
   poSummaryHeader: {
-    flexDirection: 'row',
     alignItems: 'center',
+    flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 12,
   },
-  poSummaryLabel: { fontSize: 11, fontWeight: '600', color: colors.textMuted, textTransform: 'uppercase' },
-  poSummaryValue: { fontSize: 18, fontWeight: '800', color: colors.textPrimary, marginTop: 2 },
-  badgeBoxCount: {
+  poSummaryLabel: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+  },
+  poSummaryValue: {
+    color: colors.textPrimary,
+    fontSize: 18,
+    fontWeight: '800',
+    marginTop: 2,
+  },
+  boxCountBadge: {
     backgroundColor: `${colors.warning}20`,
+    borderRadius: 20,
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: 20,
   },
-  badgeBoxCountText: { fontSize: 12, fontWeight: '700', color: colors.warning },
-  progressBg: {
-    height: 6,
+  boxCountBadgeText: { color: colors.warning, fontSize: 12, fontWeight: '700' },
+  progressBackground: {
     backgroundColor: `${colors.warning}15`,
     borderRadius: 3,
+    height: 6,
     overflow: 'hidden',
   },
-  progressFill: { height: '100%', borderRadius: 3 },
-
-  infoRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 },
-  infoText: { fontSize: 13, color: colors.textSecondary, flex: 1 },
-
-  // Box Checklist
-  boxListSection: { marginTop: 8, gap: 8 },
-  emptyBoxNotice: {
-    flexDirection: 'row',
+  progressFill: { borderRadius: 3, height: '100%' },
+  infoRow: {
     alignItems: 'center',
+    flexDirection: 'row',
     gap: 8,
-    backgroundColor: `${colors.warning}10`,
-    padding: 12,
-    borderRadius: 10,
+    paddingVertical: 4,
   },
-  emptyBoxText: { fontSize: 13, color: colors.textSecondary, flex: 1 },
-  boxItemCard: {
-    flexDirection: 'row',
+  infoText: { color: colors.textSecondary, flex: 1, fontSize: 13 },
+  boxListSection: { gap: 8, marginTop: 8 },
+  emptyBoxNotice: {
     alignItems: 'center',
-    gap: 12,
-    backgroundColor: colors.surface,
-    borderRadius: 12,
+    backgroundColor: `${colors.warning}10`,
+    borderRadius: 10,
+    flexDirection: 'row',
+    gap: 8,
     padding: 12,
-    borderWidth: 1,
+  },
+  emptyBoxText: { color: colors.textSecondary, flex: 1, fontSize: 13 },
+  boxItemCard: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
     borderColor: colors.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 12,
+    padding: 12,
   },
   boxItemCardScanned: {
     backgroundColor: `${colors.success}08`,
     borderColor: `${colors.success}40`,
   },
   boxCheckCircle: {
-    width: 22,
-    height: 22,
+    alignItems: 'center',
+    borderColor: colors.textMuted,
     borderRadius: 11,
     borderWidth: 2,
-    borderColor: colors.textMuted,
-    alignItems: 'center',
+    height: 22,
     justifyContent: 'center',
+    width: 22,
   },
   boxCheckCircleActive: {
     backgroundColor: colors.success,
     borderColor: colors.success,
   },
-  boxNameText: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
+  boxNameText: { color: colors.textPrimary, fontSize: 14, fontWeight: '600' },
   boxNameTextScanned: { color: colors.textPrimary },
-  boxStatusText: { fontSize: 11, color: colors.textMuted, marginTop: 1 },
+  boxStatusText: { color: colors.textMuted, fontSize: 11, marginTop: 1 },
   scannedBadge: {
     backgroundColor: colors.success,
+    borderRadius: 6,
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 6,
   },
-  scannedBadgeText: { fontSize: 10, fontWeight: '800', color: colors.textInverse },
-
-  // Submit Button
-  submitBtn: {
+  scannedBadgeText: { color: colors.textInverse, fontSize: 10, fontWeight: '800' },
+  submitButton: {
+    alignItems: 'center',
     backgroundColor: colors.warning,
     borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: 'center',
     justifyContent: 'center',
     marginTop: 8,
+    paddingVertical: 14,
     ...shadows.md,
   },
-  submitBtnDisabled: { opacity: 0.5 },
-  submitBtnRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  submitBtnText: { fontSize: 15, fontWeight: '700', color: colors.textInverse },
-
-  // Last Delivered
+  submitButtonDisabled: { opacity: 0.5 },
+  submitButtonRow: { alignItems: 'center', flexDirection: 'row', gap: 8 },
+  submitButtonText: {
+    color: colors.textInverse,
+    fontSize: 15,
+    fontWeight: '700',
+  },
   lastCard: {
-    flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: `${colors.success}10`,
+    borderColor: `${colors.success}30`,
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: 'row',
     gap: 12,
     marginTop: 20,
     padding: 14,
-    backgroundColor: `${colors.success}10`,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: `${colors.success}30`,
   },
-  lastLabel: { fontSize: 11, fontWeight: '600', color: colors.textMuted, textTransform: 'uppercase' },
-  lastValue: { fontSize: 14, fontWeight: '700', color: colors.textPrimary, marginTop: 2 },
-  lastSubValue: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+  lastLabel: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+  },
+  lastValue: {
+    color: colors.textPrimary,
+    fontSize: 14,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  lastSubValue: { color: colors.textSecondary, fontSize: 12, marginTop: 2 },
 });
 
 export default DeliveryScreen;

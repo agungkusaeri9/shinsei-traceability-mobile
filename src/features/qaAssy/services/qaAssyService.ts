@@ -2,12 +2,16 @@ import httpClient from '../../../services/httpClient';
 import { API_ENDPOINTS } from '../../../services/api';
 import { extractStkNumber } from '../../../utils/barcode';
 import { getErrorMessage } from '../../../utils/errorMessage';
+import type { ApiResponse } from '../../../types';
 import {
   QaRegisterData,
   QaRegisterPayload,
   QaAddPartPayload,
   QaFinishPayload,
   QaAssyResponse,
+  QaAcceptanceResponse,
+  QaAssyResultData,
+  QaAcceptanceData,
 } from '../types';
 
 /**
@@ -65,7 +69,7 @@ export const submitQaRegister = async (
     stks: (payload.stks ?? []).map(s => extractStkNumber(s)),
   };
   try {
-    const response = await httpClient.post<QaAssyResponse>(
+    const response = await httpClient.post<ApiResponse<QaAssyResultData>>(
       API_ENDPOINTS.ASSY,
       body,
     );
@@ -87,7 +91,7 @@ export const submitQaAddPart = async (
     stks: (payload.stks ?? []).map(s => extractStkNumber(s)),
   };
   try {
-    const response = await httpClient.post<QaAssyResponse>(
+    const response = await httpClient.post<ApiResponse<QaAssyResultData>>(
       API_ENDPOINTS.ASSY,
       body,
     );
@@ -109,11 +113,35 @@ export const submitQaFinish = async (
     boxName: payload.boxName,
   };
   try {
-    const response = await httpClient.post<QaAssyResponse>(
+    const response = await httpClient.post<ApiResponse<QaAssyResultData>>(
       API_ENDPOINTS.ASSY_FINISH,
       body,
     );
     return unwrapAssyResponse(response);
+  } catch (error) {
+    throw toAssyError(error);
+  }
+};
+
+/**
+ * POST API - Acceptance (Endpoint: /assy/acceptance)
+ * Body: { stkNumber: string }
+ */
+export const submitQaAssyAcceptance = async (
+  stkNumber: string,
+): Promise<QaAcceptanceResponse> => {
+  const body = {
+    stkNumber: extractStkNumber(stkNumber),
+  };
+  try {
+    const response = await httpClient.post<ApiResponse<QaAcceptanceData>>(
+      API_ENDPOINTS.ASSY_ACCEPTANCE,
+      body,
+    );
+    if (response.data && response.data.status === false) {
+      throw new Error(response.data.message || 'Gagal melakukan QA Assy Acceptance');
+    }
+    return response.data;
   } catch (error) {
     throw toAssyError(error);
   }

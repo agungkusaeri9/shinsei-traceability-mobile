@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   ClipboardList,
   ArrowLeftRight,
   CheckCircle2,
+  PackageCheck,
 } from 'lucide-react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,6 +20,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SmtStackParamList } from '../../../types';
 import { colors, shadows } from '../../../theme';
 import { useAuth } from '../../../hooks/useAuth';
+import { useTimedRefresh } from '../../../hooks/useTimedRefresh';
 
 type Props = {
   navigation: NativeStackNavigationProp<SmtStackParamList, 'SmtHome'>;
@@ -27,13 +29,18 @@ type Props = {
 const SmtHomeScreen: React.FC<Props> = ({ navigation }) => {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
-  const [refreshing, setRefreshing] = useState(false);
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 1200);
-  }, []);
+  const { refreshing, onRefresh } = useTimedRefresh(1200);
 
   const menuItems = [
+    {
+      key: 'SmtAcceptance',
+      title: 'Acceptance',
+      desc: 'Scan STK Acceptance SMT',
+      icon: <PackageCheck color={colors.primary} size={28} />,
+      iconBg: `${colors.primary}20`,
+      borderColor: `${colors.primary}30`,
+      onPress: () => navigation.navigate('SmtAcceptance'),
+    },
     {
       key: 'PartRegister',
       title: 'Part Register',

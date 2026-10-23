@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -13,14 +13,13 @@ import {
   Warehouse,
   Cpu,
   Settings,
-  Package,
   Truck,
   ChevronRight,
   Lock,
 } from 'lucide-react-native';
 import { AreaStackParamList } from '../../../types';
-import { useAuth } from '../../../hooks/useAuth';
 import { colors } from '../../../theme';
+import { useTimedRefresh } from '../../../hooks/useTimedRefresh';
 
 type Props = {
   navigation: NativeStackNavigationProp<AreaStackParamList, 'AreaHome'>;
@@ -36,12 +35,7 @@ interface AreaItem {
 }
 
 const AreaScreen: React.FC<Props> = ({ navigation }) => {
-  const { user } = useAuth();
-  const [refreshing, setRefreshing] = useState(false);
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 1200);
-  }, []);
+  const { refreshing, onRefresh } = useTimedRefresh(1200);
 
   const areas: AreaItem[] = [
     {

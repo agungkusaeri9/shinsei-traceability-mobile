@@ -1,0 +1,29 @@
+NOTICE TO USER: PLEASE READ THIS SOFTWARE LICENSE AGREEMENT (THIS “AGREEMENT”) CAREFULLY. BY USING ALL OR ANY PORTION OF THE BT-A Series (THIS “SOFTWARE”), YOU ARE AGREEING TO BE BOUND BY ALL THE TERMS AND CONDITONS OF THIS AGREEMENT. IF YOU DO NOT AGREE TO ANY TERMS OF THIS AGREEMENT, DO NOT USE THIS SOFTWARE.
+1. Definition
+1.1	“use” or “using” means to access, install, download, copy or otherwise benefit from using the functionality of this Software.
+1.2	“This Software” means the software and all associated documentation provided by KEYENCE.
+
+2. Grant of License.
+Conditioned upon compliance with all of the terms and conditions of this Agreement, KEYENCE grants you a nonexclusive and nontransferable license to install this Software on all computers used by your entity in order to use the KEYENCE product. You may make one copy of this Software for backup or archive purposes only.
+
+3. Restrictions.
+3.1	Except for installation of updates or new functions provided by KEYENCE, you may not modify or add any function to this Software.
+3.2	You may not reverse engineer, decompile or disassemble this Software.
+3.3	You may not create derivative works based on this Software.
+3.4	Other than expressly stated by KEYENCE, you may not resell, retransfer, rent or otherwise redistribute this Software to any third parties.
+
+4. Intellectual Property Rights.
+Except as expressly stated herein, KEYENCE reserves all right, title and interest in this Software, and all associated copyrights, trademarks, and other intellectual property rights therein.
+
+5. Disclaimer.
+Keyence is licensing this Software to you “AS IS” and without any warranty of any kind. In no event will KEYENCE or its suppliers be liable to you for any damages, claims, costs or any lost profits caused by using this Software.
+
+6. Termination.
+6.1	Your license under this Agreement will terminate automatically if you destroy this Software and the copy of this Software in your possession or voluntarily return this Software to us.
+6.2	Your license under this Agreement will terminate automatically without any notice from KEYENCE if you fail to comply with any of the terms and conditions of this Agreement. Promptly upon termination, you shall cease all use of this Software and destroy all copies, full or partial, of this Software in your possession or control.
+6.3	You will compensate KEYENCE for costs or any lost profits caused by your violation or breach of any term of this Agreement.
+
+7. Governing Law.
+7.1	This Agreement will be governed by and construed in accordance with the substantive laws of Japan without regards to the principles of conflicts of law.
+7.2	If any part of this Agreement is found void and unenforceable, it will not affect the validity of the balance of this Agreement, which shall remain valid and enforceable according to its terms and conditions.
+

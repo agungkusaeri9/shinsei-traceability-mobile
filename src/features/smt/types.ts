@@ -1,6 +1,7 @@
 // ─── SMT Types ──────────────────────────────────────────────────────────────
 
 import { Product } from "../warehouse/types";
+import type { ApiResponse } from '../../types';
 
 export interface SmtCustomer {
   id: number;
@@ -96,9 +97,10 @@ export interface SmtStkListItem {
 
 export interface SmtOrderDetail {
   inventoryCode: string;
+  partNumber: string;
   line: SmtLine;
   machine: SmtMachine;
-  stkList: SmtStkListItem[];
+  stkList: string[];
 }
 
 export interface SmtOrderData {
@@ -108,11 +110,7 @@ export interface SmtOrderData {
   details: SmtOrderDetail[];
 }
 
-export interface SmtOrderResponse {
-  status: boolean;
-  message: string;
-  data: SmtOrderData;
-}
+export type SmtOrderResponse = ApiResponse<SmtOrderData>;
 
 export interface SmtPayload {
   lotNumber: string;
@@ -134,11 +132,33 @@ export interface SmtFinishPayload {
   customer: string;
 }
 
-export interface SmtFinishResponse {
-  status: boolean;
-  message: string;
-  data?: unknown;
+export interface SmtFinishDataItem {
+  orderId: number;
+  lotNumber: string;
+  productSelect: string;
+  createdAt: string;
+  updatedAt: string;
+  printStart: string;
+  printEnd: string;
 }
+
+export type SmtFinishResponse = ApiResponse<SmtFinishDataItem[]>;
+
+export interface SmtAcceptancePayload {
+  stkNumber: string;
+}
+
+export interface SmtAcceptanceData {
+  id: number;
+  partBatchId: number;
+  areaId: number;
+  areaName: string | null;
+  action: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type SmtAcceptanceResponse = ApiResponse<SmtAcceptanceData>;
 
 // ─── Order Lot ───────────────────────────────────────────────────────────────
 
@@ -158,9 +178,17 @@ export interface OrderLotPagination {
   hasNextPage: boolean;
 }
 
-export interface OrderLotSearchResponse {
-  status: boolean;
-  message: string;
-  data: OrderLotItem[];
+export interface OrderLotSearchResponse extends ApiResponse<OrderLotItem[]> {
   pagination: OrderLotPagination;
 }
+
+export interface OrderLotProduct {
+  id: number;
+  name: string;
+  code: string;
+  description: string;
+  customerId: number;
+  customerName: string;
+}
+
+export type OrderLotsByLotResponse = ApiResponse<OrderLotProduct[]>;

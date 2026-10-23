@@ -1,25 +1,22 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, RefreshControl } from 'react-native';
-import {
-  Users,
-  Building2,
-  ShoppingCart,
-  UserCheck,
-  MapPin,
-  Truck,
-} from 'lucide-react-native';
+import { PackageSearch } from 'lucide-react-native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 
 import { AppTabParamList } from '../../../types';
 import { colors } from '../../../theme';
 import DashboardHeader from '../components/DashboardHeader';
-import DashboardCard from '../components/DashboardCard';
 import QuickActionCard from '../components/QuickActionCard';
+import SystemStatsSection from '../components/SystemStatsSection';
 import {
   getTrackingSummary,
   getStkTrackingTable,
   getWarehouseSummary,
   getStkByArea,
+  getTotalUsers,
+  getTotalAreas,
+  getTotalOrders,
+  getTotalStks,
 } from '../services/dashboardService';
 import type {
   StkByAreaItem,
@@ -30,6 +27,7 @@ import type {
 import { WarehouseSummaryWidget } from '../components/WarehouseSummaryWidget';
 import { StkTrackingTableWidget } from '../components/StkTrackingTableWidget';
 import { StkByAreaWidget } from '../components/StkByAreaWidget';
+import { navigateToCheckStk } from '../../../navigation/navigationHelpers';
 
 type Props = {
   navigation: BottomTabNavigationProp<AppTabParamList, 'Dashboard'>;
@@ -37,25 +35,44 @@ type Props = {
 
 const SuperAdminDashboard: React.FC<Props> = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
-  const [trackingSummary, setTrackingSummary] = useState<TrackingSummaryData | null>(null);
-  const [stkTrackingTable, setStkTrackingTable] = useState<StkTrackingItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [trackingSummary, setTrackingSummary] =
+    useState<TrackingSummaryData | null>(null);
+  const [stkTrackingTable, setStkTrackingTable] = useState<StkTrackingItem[]>(
+    [],
+  );
   const [whSummary, setWhSummary] = useState<WarehouseSummaryData | null>(null);
   const [stkByArea, setStkByArea] = useState<StkByAreaItem[]>([]);
+  const [totalUsers, setTotalUsers] = useState(0);
+  const [totalAreas, setTotalAreas] = useState(0);
+  const [totalOrders, setTotalOrders] = useState(0);
+  const [totalStks, setTotalStks] = useState(0);
 
   const loadData = useCallback(async () => {
     try {
-      const [summaryRes, tableRes, whRes, areaRes] = await Promise.all([
-        getTrackingSummary(),
-        getStkTrackingTable(),
-        getWarehouseSummary(),
-        getStkByArea(),
-      ]);
+      const [summaryRes, tableRes, whRes, areaRes, users, areas, orders, stks] =
+        await Promise.all([
+          getTrackingSummary(),
+          getStkTrackingTable(),
+          getWarehouseSummary(),
+          getStkByArea(),
+          getTotalUsers(),
+          getTotalAreas(),
+          getTotalOrders(),
+          getTotalStks(),
+        ]);
       setTrackingSummary(summaryRes);
       setStkTrackingTable(tableRes);
       setWhSummary(whRes);
       setStkByArea(areaRes);
+      setTotalUsers(users);
+      setTotalAreas(areas);
+      setTotalOrders(orders);
+      setTotalStks(stks);
     } catch (e) {
       console.log('Error loading SuperAdminDashboard data:', e);
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -71,40 +88,24 @@ const SuperAdminDashboard: React.FC<Props> = ({ navigation }) => {
 
   const renderHeader = () => (
     <View>
-      {/* ── System Stats ─────────────────────────────── */}
-      <Text style={styles.sectionTitle}>Ringkasan Sistem</Text>
+      <Text style={styles.sectionTitle}>Quick Actions</Text>
       <View style={styles.statsRow}>
-        <DashboardCard
-          title="Total User"
-          value="48"
-          color={colors.indigo}
-          icon={<Users color={colors.indigo} size={20} />}
-          style={styles.cardHalf}
-        />
-        <DashboardCard
-          title="Area Aktif"
-          value="12"
-          color={colors.success}
-          icon={<Building2 color={colors.success} size={20} />}
-          style={styles.cardHalf}
-        />
-      </View>
-      <View style={styles.statsRow}>
-        <DashboardCard
-          title="Total Order"
-          value="1.4K"
+        <QuickActionCard
+          title="Check STK"
           color={colors.primary}
-          icon={<ShoppingCart color={colors.primary} size={20} />}
-          style={styles.cardHalf}
-        />
-        <DashboardCard
-          title="Approval"
-          value="7"
-          color={colors.warning}
-          icon={<UserCheck color={colors.warning} size={20} />}
-          style={styles.cardHalf}
+          icon={<PackageSearch color={colors.primary} size={22} />}
+          onPress={() => navigateToCheckStk(navigation)}
         />
       </View>
+
+      {/* ── System Stats ─────────────────────────────── */}
+      <SystemStatsSection
+        loading={loading}
+        totalUsers={totalUsers}
+        totalAreas={totalAreas}
+        totalOrders={totalOrders}
+        totalStks={totalStks}
+      />
 
       {/* ── Warehouse Summary Widget ── */}
       {whSummary && <WarehouseSummaryWidget data={whSummary} />}
@@ -119,33 +120,6 @@ const SuperAdminDashboard: React.FC<Props> = ({ navigation }) => {
           stkList={stkTrackingTable}
         />
       )}
-
-      {/* ── Quick Actions ────────────────────────────── */}
-      <Text style={[styles.sectionTitle, styles.sectionGap]}>
-        Manajemen Cepat
-      </Text>
-      <View style={styles.statsRow}>
-        <QuickActionCard
-          title="Kelola User"
-          color={colors.indigo}
-          icon={<UserCheck color={colors.indigo} size={22} />}
-          onPress={() => navigation.navigate('Profile')}
-        />
-        <QuickActionCard
-          title="Kelola Area"
-          color={colors.success}
-          icon={<MapPin color={colors.success} size={22} />}
-          onPress={() => navigation.navigate('Area')}
-        />
-      </View>
-      <View style={styles.statsRow}>
-        <QuickActionCard
-          title="Delivery"
-          color={colors.warning}
-          icon={<Truck color={colors.warning} size={22} />}
-          onPress={() => navigation.navigate('Delivery')}
-        />
-      </View>
     </View>
   );
 
@@ -187,7 +161,6 @@ const styles = StyleSheet.create({
   },
   sectionGap: { marginTop: 20 },
   statsRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
-  cardHalf: { flex: 1 },
 });
 
 export default SuperAdminDashboard;

@@ -1,6 +1,7 @@
 import httpClient from '../../../services/httpClient';
 import { API_ENDPOINTS } from '../../../services/api';
 import { extractStkNumber } from '../../../utils/barcode';
+import type { ApiResponse } from '../../../types';
 import {
   Supplier,
   Maker,
@@ -9,12 +10,13 @@ import {
   PartAcceptanceResponse,
   StockInPayload,
   StockInResponse,
-  Order,
   MaterialFeedingPayload,
   MaterialFeedingResponse,
   StkResponse,
   CheckStkLocationPayload,
   CheckStkLocationResponse,
+  PartAcceptanceItem,
+  StkData,
 } from '../types';
 
 // ─── Location Check ────────────────────────────────────────────────────────
@@ -22,7 +24,7 @@ import {
 export const checkStkLocation = async (
   payload: CheckStkLocationPayload,
 ): Promise<CheckStkLocationResponse> => {
-  const response = await httpClient.post<CheckStkLocationResponse>(
+  const response = await httpClient.post<ApiResponse<unknown>>(
     API_ENDPOINTS.CHECK_STK_LOCATION,
     payload,
   );
@@ -32,30 +34,37 @@ export const checkStkLocation = async (
 // ─── Suppliers ─────────────────────────────────────────────────────────────
 
 export const fetchSuppliers = async (): Promise<Supplier[]> => {
-  const response = await httpClient.get(API_ENDPOINTS.SUPPLIERS);
-  return response.data.data ?? response.data;
+  const response = await httpClient.get<ApiResponse<Supplier[]>>(
+    API_ENDPOINTS.SUPPLIERS,
+  );
+  return response.data.data;
 };
 
 export const createSupplier = async (
   data: Omit<Supplier, 'id'>,
 ): Promise<Supplier> => {
-  const response = await httpClient.post<Supplier>(
+  const response = await httpClient.post<ApiResponse<Supplier>>(
     API_ENDPOINTS.SUPPLIERS,
     data,
   );
-  return response.data;
+  return response.data.data;
 };
 
 // ─── Makers ────────────────────────────────────────────────────────────────
 
 export const fetchMakers = async (): Promise<Maker[]> => {
-  const response = await httpClient.get(API_ENDPOINTS.MAKERS);
-  return response.data.data ?? response.data;
+  const response = await httpClient.get<ApiResponse<Maker[]>>(
+    API_ENDPOINTS.MAKERS,
+  );
+  return response.data.data;
 };
 
 export const createMaker = async (data: Omit<Maker, 'id'>): Promise<Maker> => {
-  const response = await httpClient.post<Maker>(API_ENDPOINTS.MAKERS, data);
-  return response.data;
+  const response = await httpClient.post<ApiResponse<Maker>>(
+    API_ENDPOINTS.MAKERS,
+    data,
+  );
+  return response.data.data;
 };
 
 // ─── Part Acceptance ───────────────────────────────────────────────────────
@@ -63,7 +72,7 @@ export const createMaker = async (data: Omit<Maker, 'id'>): Promise<Maker> => {
 export const registerPartAcceptance = async (
   data: CreatePartAcceptancePayload | PartAcceptancePayload,
 ): Promise<PartAcceptanceResponse> => {
-  const response = await httpClient.post<PartAcceptanceResponse>(
+  const response = await httpClient.post<ApiResponse<PartAcceptanceItem>>(
     API_ENDPOINTS.PART_ACCEPTANCES,
     data,
   );
@@ -94,7 +103,7 @@ export const stockIn = async (
     } as any);
   }
 
-  const response = await httpClient.post<StockInResponse>(
+  const response = await httpClient.post<ApiResponse<StockInResponse>>(
     API_ENDPOINTS.WH_STOCK_INS,
     formData,
     {
@@ -103,14 +112,14 @@ export const stockIn = async (
       },
     },
   );
-  return response.data;
+  return response.data.data;
 };
 
 // ─── STK Data ─────────────────────────────────────────────────────────────
 
 export const fetchStkData = async (stkNumber: string): Promise<StkResponse> => {
   const cleanStk = extractStkNumber(stkNumber);
-  const response = await httpClient.get<StkResponse>(
+  const response = await httpClient.get<ApiResponse<StkData>>(
     `${API_ENDPOINTS.STKS}/${cleanStk}`,
   );
   return response.data;
@@ -125,11 +134,11 @@ export { fetchOrders, fetchOrderById } from '../../../services/orderService';
 export const submitMaterialFeeding = async (
   data: MaterialFeedingPayload,
 ): Promise<MaterialFeedingResponse> => {
-  const response = await httpClient.post<MaterialFeedingResponse>(
+  const response = await httpClient.post<ApiResponse<MaterialFeedingResponse>>(
     API_ENDPOINTS.MATERIAL_FEEDINGS,
     data,
   );
-  return response.data;
+  return response.data.data;
 };
 
 // ─── Utility ───────────────────────────────────────────────────────────────

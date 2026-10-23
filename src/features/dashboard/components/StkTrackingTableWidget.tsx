@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Activity, Check, Clock, ChevronRight } from 'lucide-react-native';
 import { colors, shadows } from '../../../theme';
 import {

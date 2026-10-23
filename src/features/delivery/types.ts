@@ -1,10 +1,8 @@
 // ─── Delivery Feature Types ──────────────────────────────────────────────────
 
-export interface DeliveryResponse {
-  status: boolean;
-  message: string;
-  data?: DeliveryResponseData;
-}
+import type { ApiResponse } from '../../types';
+
+export type DeliveryResponse = ApiResponse<DeliveryResponseData>;
 
 export interface DeliveryResponseData {
   id: number,
@@ -33,10 +31,7 @@ export interface BoxItem {
   updatedAt?: string;
 }
 
-export interface PoListResponse {
-  status: boolean;
-  message: string;
-  data?: OrderPoItem[] | any;
+export interface PoListResponse extends ApiResponse<OrderPoItem[]> {
   pagination?: {
     page: number;
     limit: number;
@@ -47,12 +42,47 @@ export interface PoListResponse {
   };
 }
 
-export interface BoxListResponse {
-  status: boolean;
-  message: string;
-  data?: BoxItem[];
-}
+export type BoxListResponse = ApiResponse<BoxItem[]>;
 
 export interface SubmitDeliveryPayload {
   boxNames: string[];
 }
+
+export type DeliveryPoOption = {
+  id: string;
+  label: string;
+};
+
+export type LastDelivered = {
+  poNumber: string;
+  boxes: string[];
+  timestamp: string;
+};
+
+export type OrderPoApiItem =
+  | string
+  | {
+      id?: number;
+      poNumber?: string;
+      'po-Number'?: string;
+      po_number?: string;
+      name?: string;
+      createdAt?: string;
+      updatedAt?: string;
+    };
+
+export type BoxApiItem =
+  | string
+  | {
+      id?: number;
+      name?: string;
+      boxName?: string;
+      used?: boolean;
+      createdAt?: string;
+      updatedAt?: string;
+    };
+
+export type LegacyBoxesData = {
+  box?: BoxApiItem[];
+  boxes?: BoxApiItem[];
+};

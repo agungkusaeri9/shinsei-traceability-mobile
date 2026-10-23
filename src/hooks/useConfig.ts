@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { getBaseUrl, setBaseUrl } from '../utils/baseUrl';
 import { updateBaseUrl } from '../services/httpClient';
 import { testPingService } from '../services/configService';
@@ -7,7 +7,7 @@ import type { PingResult } from '../types';
 export const useConfig = () => {
   const [isLoading, setIsLoading] = useState(false);
 
-  const testPing = async (url: string): Promise<PingResult> => {
+  const testPing = useCallback(async (url: string): Promise<PingResult> => {
     if (!url.trim()) {
       return { success: false, message: 'URL tidak boleh kosong' };
     }
@@ -16,21 +16,24 @@ export const useConfig = () => {
 
     try {
       return await testPingService(url);
-    } catch (error: any) {
-      return { success: false, message: error?.message || 'Gagal mengecek ping' };
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Gagal mengecek ping',
+      };
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  const loadBaseUrl = async (): Promise<string> => {
+  const loadBaseUrl = useCallback(async (): Promise<string> => {
     return getBaseUrl();
-  };
+  }, []);
 
-  const saveBaseUrl = async (url: string): Promise<void> => {
+  const saveBaseUrl = useCallback(async (url: string): Promise<void> => {
     await setBaseUrl(url);
     updateBaseUrl(url);
-  };
+  }, []);
 
   return {
     isLoading,

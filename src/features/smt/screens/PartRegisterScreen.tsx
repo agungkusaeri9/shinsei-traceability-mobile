@@ -1,12 +1,9 @@
-import React, { useState, useRef, useCallback, useMemo } from 'react';
+import React from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
-  TextInput,
-  KeyboardAvoidingView,
-  Platform,
   ActivityIndicator,
   FlatList,
   Modal,
@@ -23,383 +20,43 @@ import {
   Layers,
 } from 'lucide-react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useFocusEffect } from '@react-navigation/native';
 
 import { SmtStackParamList } from '../../../types';
 import { colors, shadows } from '../../../theme';
 import Button from '../../../components/Button';
-import {
-  showSuccess,
-  showError,
-  showInfo,
-} from '../../../services/toastService';
-import type { SmtOrderData, SmtOrderDetail } from '../types';
-import { fetchOrderByLotNumber, submitSmt } from '../services/smtService';
-import { getErrorMessage } from '../../../utils/errorMessage';
-import { fetchStkData } from '../../warehouse/services/warehouseService';
-import type { StkData } from '../../warehouse/types';
-import { extractStkNumber } from '../../../utils/barcode';
 import SmtHeader from '../components/SmtHeader';
 import StkScanProgress from '../../warehouse/components/StkScanProgress';
+import { useSmtPartRegisterFlow } from '../hooks/useSmtPartRegisterFlow';
 
 type Props = {
   navigation: NativeStackNavigationProp<SmtStackParamList, 'PartRegister'>;
 };
 
-type Step =
-  | 'scan_lot'
-  | 'scan_product'
-  | 'scan_line'
-  | 'scan_machine'
-  | 'scanning_parts'
-  | 'finished';
-
 const PartRegisterScreen: React.FC<Props> = ({ navigation }) => {
-  const barcodeRef = useRef<TextInput>(null);
-  const inputValueRef = useRef('');
-  const flatListRef = useRef<FlatList>(null);
-  const [step, setStep] = useState<Step>('scan_lot');
-  const [scanInput, setScanInput] = useState('');
-  const [lotNumber, setLotNumber] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const [orderData, setOrderData] = useState<SmtOrderData | null>(null);
-  const [currentDetailIndex, setCurrentDetailIndex] = useState(0);
-  const [productSelect, setProductSelect] = useState('');
-
-  // Per-detail scanned tracking: Map<detailIndex, scannedStkNumber>
-  const [scannedMap, setScannedMap] = useState<Map<number, string>>(new Map());
-  const [scannedBatchMap, setScannedBatchMap] = useState<Map<number, number>>(new Map());
-
-  // Modal for viewing available STKs on long-press
-  const [selectedDetailForModal, setSelectedDetailForModal] = useState<SmtOrderDetail | null>(null);
-
-  const currentDetail: SmtOrderDetail | null =
-    orderData?.details?.[currentDetailIndex] ?? null;
-
-  const totalBatches = useMemo(
-    () => orderData?.details?.length ?? 0,
-    [orderData],
-  );
-  const totalScanned = useMemo(
-    () => scannedMap.size,
-    [scannedMap],
-  );
-
-  const focusScanner = useCallback(() => {
-    requestAnimationFrame(() => { barcodeRef.current?.focus(); });
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      const timer = setTimeout(() => focusScanner(), 200);
-      return () => clearTimeout(timer);
-    }, [step, focusScanner]),
-  );
-
-  // Helper: lanjut ke detail berikutnya
-  const advanceToNextDetail = useCallback(
-    (nextIdx: number, prevDetail: SmtOrderDetail) => {
-      if (!orderData) return;
-      const nextDetail = orderData.details[nextIdx];
-      if (!nextDetail) return;
-
-      setCurrentDetailIndex(nextIdx);
-      flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
-
-      const lineChanged = (prevDetail.line?.id ?? null) !== (nextDetail.line?.id ?? null);
-      const machineChanged = (prevDetail.machine?.id ?? null) !== (nextDetail.machine?.id ?? null);
-
-      if (lineChanged) {
-        showInfo(`Detail ${nextIdx + 1}/${orderData.details.length}: Scan line baru`);
-        setStep('scan_line');
-      } else if (machineChanged) {
-        showInfo(`Detail ${nextIdx + 1}/${orderData.details.length}: Scan machine baru`);
-        setStep('scan_machine');
-      } else {
-        showInfo(`Detail ${nextIdx + 1}/${orderData.details.length}: Scan STK berikutnya`);
-        setStep('scanning_parts');
-      }
-    },
-    [orderData],
-  );
-
-  // Step 1: Scan Lot
-  const handleScanLotNumber = async (value: string) => {
-    const trimmed = value.trim();
-    if (!trimmed) { focusScanner(); return; }
-    setLotNumber(trimmed);
-    setIsLoading(true);
-    try {
-      const response = await fetchOrderByLotNumber(trimmed);
-      if (response.status && response.data) {
-        setOrderData(response.data);
-        setCurrentDetailIndex(0);
-        setScannedMap(new Map());
-        showSuccess(`Lot number ${trimmed} ditemukan`);
-        setScanInput('');
-        setStep('scan_product');
-      } else {
-        showError(response.message || 'Lot number tidak ditemukan');
-        setScanInput('');
-        focusScanner();
-      }
-    } catch (error: any) {
-      showError(getErrorMessage(error, 'Gagal mengambil data lot number'));
-      setScanInput('');
-      focusScanner();
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Step 2: Scan Product Select (sekali saja)
-  const handleScanProductSelect = (value: string) => {
-    const trimmed = value.trim();
-    if (!trimmed) { focusScanner(); return; }
-    setProductSelect(trimmed);
-    showSuccess(`Product Select: ${trimmed}`);
-    setScanInput('');
-    setStep('scan_line');
-  };
-
-  // Step 3: Scan Line
-  const handleScanLine = (value: string) => {
-    const trimmed = value.trim();
-    if (!trimmed || !orderData) { focusScanner(); return; }
-    const detail = orderData.details[currentDetailIndex];
-    if (!detail) { focusScanner(); return; }
-
-    const match =
-      detail.line == null ||
-      detail.line.name.toLowerCase() === trimmed.toLowerCase() ||
-      String(detail.line.id) === trimmed;
-
-    if (match) {
-      showSuccess(`Line ${detail.line?.name || 'No line'} cocok`);
-      setScanInput('');
-      setStep('scan_machine');
-    } else {
-      showError(`Line "${trimmed}" tidak cocok. Harus: ${detail.line?.name}`);
-      setScanInput('');
-      focusScanner();
-    }
-  };
-
-  // Step 4: Scan Machine
-  const handleScanMachine = (value: string) => {
-    const trimmed = value.trim();
-    if (!trimmed || !orderData) { focusScanner(); return; }
-    const detail = orderData.details[currentDetailIndex];
-    if (!detail) { focusScanner(); return; }
-
-    const match =
-      detail.machine == null ||
-      detail.machine.name.toLowerCase() === trimmed.toLowerCase() ||
-      String(detail.machine.id) === trimmed;
-
-    if (match) {
-      showSuccess(`Machine ${detail.machine?.name || 'No machine'} cocok`);
-      setScanInput('');
-      setStep('scanning_parts');
-    } else {
-      showError(`Machine "${trimmed}" tidak cocok. Harus: ${detail.machine?.name}`);
-      setScanInput('');
-      focusScanner();
-    }
-  };
-
-  // Step 5: Scan STK
-  const handleScanPartBatch = async (value: string) => {
-    const trimmed = extractStkNumber(value);
-    if (!trimmed || !orderData) { focusScanner(); return; }
-
-    setIsSubmitting(true);
-    try {
-      // 1. Hit API /api/stks/{stkNumber}
-      const stkResponse = await fetchStkData(trimmed);
-      if (!stkResponse.status || !stkResponse.data) {
-        showError(stkResponse.message || `STK "${trimmed}" tidak ditemukan`);
-        setScanInput('');
-        focusScanner();
-        return;
-      }
-
-      const stkData: StkData = stkResponse.data;
-      const latestHist = stkData.latestHistory || '';
-
-      // 2. Validation: check if latestHistory is "Register"
-      if (latestHist.toLowerCase() !== 'stockout') {
-        if (latestHist.toLowerCase() == "register") {
-          showError(`STK ${trimmed} sudah di register!`);
-        } else {
-          showError(`STK ${trimmed} belum distock-out dari warehouse! (Status: ${latestHist})`);
-        }
-        setScanInput('');
-        focusScanner();
-        return;
-      }
-
-      const stkInventoryCode = (stkData.part?.inventoryCode || '').trim();
-      const stkPartNumber = (stkData.part?.partNumber || '').trim();
-
-      // 3. Find matching detail in orderData.details (prefer currentDetailIndex, then unscanned, then scanned for overwrite)
-      let matchIdx = -1;
-      if (
-        currentDetail &&
-        currentDetail.inventoryCode.trim().toLowerCase() === stkInventoryCode.toLowerCase() &&
-        currentDetail.stkList.some(s => s.partNumber.trim().toLowerCase() === stkPartNumber.toLowerCase())
-      ) {
-        matchIdx = currentDetailIndex;
-      } else {
-        const unscannedIdx = orderData.details.findIndex((d, idx) => {
-          if (scannedMap.has(idx)) return false;
-          const invMatch = d.inventoryCode.trim().toLowerCase() === stkInventoryCode.toLowerCase();
-          const partMatch = d.stkList.some(s => s.partNumber.trim().toLowerCase() === stkPartNumber.toLowerCase());
-          return invMatch && partMatch;
-        });
-
-        if (unscannedIdx !== -1) {
-          matchIdx = unscannedIdx;
-        } else {
-          matchIdx = orderData.details.findIndex(d => {
-            const invMatch = d.inventoryCode.trim().toLowerCase() === stkInventoryCode.toLowerCase();
-            const partMatch = d.stkList.some(s => s.partNumber.trim().toLowerCase() === stkPartNumber.toLowerCase());
-            return invMatch && partMatch;
-          });
-        }
-      }
-
-      if (matchIdx === -1) {
-        showError(
-          `STK ${trimmed} (Part: ${stkPartNumber || '-'}, PDDM: ${stkInventoryCode || '-'}) tidak cocok dengan order ini`,
-        );
-        setScanInput('');
-        focusScanner();
-        return;
-      }
-
-      const matchedDetailItem = orderData.details[matchIdx];
-      const finalStk = stkData.stkNumber || trimmed;
-      const isOverwrite = scannedMap.has(matchIdx);
-      const oldStk = scannedMap.get(matchIdx);
-
-      if (isOverwrite && oldStk === finalStk) {
-        showInfo(`STK ${finalStk} sudah di-scan sebelumnya`);
-        setScanInput('');
-        focusScanner();
-        return;
-      }
-
-      const partBatchId = stkData.id;
-
-      // 4. Record or overwrite scanned STK & batch ID for this detail
-      setScannedMap(prev => {
-        const next = new Map(prev);
-        next.set(matchIdx, finalStk);
-        return next;
-      });
-
-      setScannedBatchMap(prev => {
-        const next = new Map(prev);
-        next.set(matchIdx, partBatchId);
-        return next;
-      });
-
-      if (isOverwrite) {
-        showSuccess(`STK diperbarui: ${oldStk} ➔ ${finalStk}`);
-      } else {
-        showSuccess(`STK ${finalStk} (${stkPartNumber}) berhasil di-scan`);
-      }
-
-      flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
-
-      const newScannedCount = isOverwrite ? scannedMap.size : scannedMap.size + 1;
-      if (newScannedCount >= orderData.details.length) {
-        showSuccess('Semua detail part telah di-scan! Tekan Finish.');
-      } else if (!isOverwrite) {
-        const nextIdx = matchIdx + 1;
-        if (nextIdx < orderData.details.length && matchIdx === currentDetailIndex) {
-          advanceToNextDetail(nextIdx, matchedDetailItem);
-        }
-      }
-    } catch (error: any) {
-      showError(getErrorMessage(error, `Gagal mengambil data STK ${trimmed}`));
-    } finally {
-      setIsSubmitting(false);
-    }
-
-    setScanInput('');
-    focusScanner();
-  };
-
-  const handleFinish = async () => {
-    const partBatchIds = Array.from(scannedBatchMap.values());
-    if (partBatchIds.length === 0) {
-      showError('Belum ada STK yang di-scan');
-      return;
-    }
-
-    console.log('Payload:', {
-      lotNumber,
-      partBatchIds,
-      productSelect,
-    });
-
-    setIsSubmitting(true);
-    try {
-      await submitSmt({
-        lotNumber,
-        partBatchIds,
-        productSelect,
-      });
-      showSuccess('Part Register selesai!');
-      setStep('finished');
-    } catch (error: any) {
-      showError(getErrorMessage(error, 'Gagal mengirim data Part Register'));
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleReset = () => {
-    inputValueRef.current = '';
-    setStep('scan_lot');
-    setScanInput('');
-    setOrderData(null);
-    setCurrentDetailIndex(0);
-    setProductSelect('');
-    setScannedMap(new Map());
-    setScannedBatchMap(new Map());
-    setSelectedDetailForModal(null);
-    setIsLoading(false);
-    setIsSubmitting(false);
-  };
-
-  const handleSubmitEditing = () => {
-    const val = inputValueRef.current;
-    inputValueRef.current = '';
-    setScanInput('');
-    switch (step) {
-      case 'scan_lot': handleScanLotNumber(val); break;
-      case 'scan_product': handleScanProductSelect(val); break;
-      case 'scan_line': handleScanLine(val); break;
-      case 'scan_machine': handleScanMachine(val); break;
-      case 'scanning_parts': handleScanPartBatch(val); break;
-    }
-  };
-
-  const headerSubtitle =
-    step === 'scan_lot' ? 'Scan Lot Number' :
-      step === 'scan_product' ? 'Scan Product Select' :
-        step === 'scan_line' ? 'Scan Line' :
-          step === 'scan_machine' ? 'Scan Machine' :
-            step === 'scanning_parts' ? 'Scan STK Parts' : 'Selesai';
-
-  const detailLabel = orderData
-    ? `Detail ${currentDetailIndex + 1}/${orderData.details.length}`
-    : '';
+  const {
+    step,
+    lotNumber,
+    isLoading,
+    isSubmitting,
+    availableProducts,
+    orderData,
+    currentGroupIndex,
+    productSelect,
+    scannedMap,
+    selectedDetailForModal,
+    setSelectedDetailForModal,
+    machineGroups,
+    currentMachineGroup,
+    currentGroupDetails,
+    totalBatches,
+    totalScanned,
+    flatListRef,
+    headerSubtitle,
+    machineGroupLabel,
+    handleSelectProduct,
+    handleFinish,
+    handleReset,
+  } = useSmtPartRegisterFlow();
 
   return (
     <View style={styles.container}>
@@ -407,7 +64,6 @@ const PartRegisterScreen: React.FC<Props> = ({ navigation }) => {
         title="Part Register"
         subtitle={headerSubtitle}
         icon={<ClipboardList color={colors.primary} size={18} />}
-        iconBgColor={`${colors.primary}25`}
         onBack={() =>
           step === 'scan_lot'
             ? navigation.canGoBack()
@@ -420,30 +76,12 @@ const PartRegisterScreen: React.FC<Props> = ({ navigation }) => {
         }
       />
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={{ flex: 1 }}
-      >
-        <TextInput
-          ref={barcodeRef}
-          value={scanInput}
-          onChangeText={(text) => {
-            inputValueRef.current = text;
-            setScanInput(text);
-          }}
-          autoFocus
-          showSoftInputOnFocus={false}
-          blurOnSubmit={false}
-          returnKeyType="done"
-          onSubmitEditing={handleSubmitEditing}
-          onBlur={() => setTimeout(focusScanner, 100)}
-          style={styles.hiddenInput}
-        />
+      <View style={styles.content}>
 
         {/* Step 1: Scan Lot */}
         {step === 'scan_lot' && (
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-            <StepIndicator current={0} total={5} />
+            <StepIndicator current={0} total={6} />
             <View style={styles.infoCard}>
               <ScanBarcode color={colors.primary} size={24} />
               <Text style={styles.infoText}>Scan Lot Number untuk memulai proses Part Register</Text>
@@ -457,10 +95,48 @@ const PartRegisterScreen: React.FC<Props> = ({ navigation }) => {
           </ScrollView>
         )}
 
+        {/* Step 1b: Select Product */}
+        {step === 'select_product' && (
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+            <StepIndicator current={1} total={6} />
+            <View style={styles.infoCard}>
+              <Layers color={colors.primary} size={24} />
+              <Text style={styles.infoText}>Pilih Product untuk Lot Number: {lotNumber}</Text>
+            </View>
+
+            {isLoading ? (
+              <View style={styles.loadingField}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={styles.loadingText}>Memuat detail product...</Text>
+              </View>
+            ) : (
+              <View style={{ gap: 12, marginTop: 12 }}>
+                {availableProducts.map((prod) => (
+                  <TouchableOpacity
+                    key={prod.id}
+                    activeOpacity={0.8}
+                    onPress={() => handleSelectProduct(prod)}
+                    style={styles.productOptionCard}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.productOptionTitle}>{prod.name}</Text>
+                      {prod.code ? <Text style={styles.productOptionSub}>Code: {prod.code}</Text> : null}
+                      {prod.customerName ? <Text style={styles.productOptionSub}>Customer: {prod.customerName}</Text> : null}
+                    </View>
+                    <View style={styles.productSelectBadge}>
+                      <Text style={styles.productSelectBadgeText}>Pilih</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </ScrollView>
+        )}
+
         {/* Step 2: Scan Product Select */}
         {step === 'scan_product' && orderData && (
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-            <StepIndicator current={1} total={5} />
+            <StepIndicator current={2} total={6} />
             <View style={styles.infoCard}>
               <Layers color={colors.primary} size={24} />
               <Text style={styles.infoText}>Scan Product Select</Text>
@@ -476,75 +152,101 @@ const PartRegisterScreen: React.FC<Props> = ({ navigation }) => {
         )}
 
         {/* Step 3: Scan Line */}
-        {step === 'scan_line' && orderData && currentDetail && (
+        {step === 'scan_line' && orderData && currentMachineGroup && (
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-            <StepIndicator current={2} total={5} />
-            {currentDetailIndex > 0 && (
-              <View style={styles.detailBadge}>
-                <Text style={styles.detailBadgeText}>{detailLabel}</Text>
-              </View>
-            )}
+            <StepIndicator current={3} total={6} />
+            <View style={styles.detailBadge}>
+              <Text style={styles.detailBadgeText}>{machineGroupLabel}</Text>
+            </View>
             <View style={styles.infoCard}>
               <MapPin color={colors.primary} size={24} />
-              <Text style={styles.infoText}>Scan Line untuk mencocokkan data order</Text>
+              <Text style={styles.infoText}>
+                Scan Line untuk Machine {currentMachineGroup.machine?.name || '-'}
+              </Text>
             </View>
 
             <View style={styles.detailCard}>
-              <DetailRow label="Customer" value={orderData.customer.name} />
+              <DetailRow label="Customer" value={orderData.customer?.name || '-'} />
               <DetailRow label="PCB Model" value={orderData.product?.name || '-'} />
               <DetailRow label="Face" value={orderData.pcbModelFace} />
               <DetailRow label="Product Select" value={productSelect} />
+              <DetailRow label="Line Target" value={currentMachineGroup.line?.name || 'No line'} />
+              <DetailRow label="Machine" value={currentMachineGroup.machine?.name || 'No machine'} />
             </View>
           </ScrollView>
         )}
 
         {/* Step 4: Scan Machine */}
-        {step === 'scan_machine' && orderData && currentDetail && (
+        {step === 'scan_machine' && orderData && currentMachineGroup && (
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-            <StepIndicator current={3} total={5} />
-            {currentDetailIndex > 0 && (
-              <View style={styles.detailBadge}>
-                <Text style={styles.detailBadgeText}>{detailLabel}</Text>
-              </View>
-            )}
+            <StepIndicator current={4} total={6} />
+            <View style={styles.detailBadge}>
+              <Text style={styles.detailBadgeText}>{machineGroupLabel}</Text>
+            </View>
             <View style={styles.infoCard}>
               <Cpu color={colors.primary} size={24} />
-              <Text style={styles.infoText}>Scan Machine untuk mencocokkan data order</Text>
+              <Text style={styles.infoText}>
+                Scan Machine: {currentMachineGroup.machine?.name || '-'}
+              </Text>
             </View>
             <View style={styles.detailCard}>
-              <DetailRow label="Customer" value={orderData.customer.name} />
+              <DetailRow label="Customer" value={orderData.customer?.name || '-'} />
               <DetailRow label="PCB Model" value={orderData.product?.name || '-'} />
               <DetailRow label="Face" value={orderData.pcbModelFace} />
-              <DetailRow label="Line" value={currentDetail.line?.name || 'No line'} />
+              <DetailRow label="Line" value={currentMachineGroup.line?.name || 'No line'} />
+              <DetailRow label="Machine Target" value={currentMachineGroup.machine?.name || 'No machine'} />
             </View>
           </ScrollView>
         )}
 
         {/* Step 5: Scanning Parts */}
-        {step === 'scanning_parts' && orderData && currentDetail && (
+        {step === 'scanning_parts' && orderData && currentMachineGroup && (
           <View style={{ flex: 1 }}>
             <StkScanProgress scanned={totalScanned} total={totalBatches} />
 
-            {currentDetailIndex > 0 && (
-              <View style={styles.detailBadgeRow}>
-                <Text style={styles.detailBadgeText}>{detailLabel}</Text>
-                <Text style={styles.detailBadgeText}>
-                  {`L: ${currentDetail.line?.name || '-'} | M: ${currentDetail.machine?.name || '-'}`}
-                </Text>
+            <View style={styles.detailBadgeRow}>
+              <Text style={styles.detailBadgeText}>{machineGroupLabel}</Text>
+              <Text style={styles.detailBadgeText}>
+                {`L: ${currentMachineGroup.line?.name || '-'} | M: ${currentMachineGroup.machine?.name || '-'}`}
+              </Text>
+            </View>
+
+            {machineGroups.length > 1 && (
+              <View style={styles.machineProgressRow}>
+                {machineGroups.map((grp, idx) => {
+                  const grpScanned = grp.detailIndices.filter(i => scannedMap.has(i)).length;
+                  const isComplete = grpScanned === grp.detailIndices.length;
+                  const isActive = idx === currentGroupIndex;
+                  return (
+                    <View
+                      key={grp.key}
+                      style={[
+                        styles.machineProgressDot,
+                        isActive && styles.machineProgressDotActive,
+                        isComplete && styles.machineProgressDotComplete,
+                      ]}
+                    >
+                      <Text style={styles.machineProgressDotText}>
+                        {isComplete ? '✓' : `M${idx + 1}`}
+                      </Text>
+                    </View>
+                  );
+                })}
               </View>
             )}
 
             <FlatList
               ref={flatListRef}
-              data={orderData.details}
-              keyExtractor={(item, idx) => `${item.inventoryCode}-${idx}`}
+              data={currentGroupDetails}
+              keyExtractor={(item) => `${item.detail.inventoryCode}-${item.originalIndex}`}
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.stkListContent}
               keyboardShouldPersistTaps="handled"
-              renderItem={({ item: detail, index: idx }) => {
+              renderItem={({ item }) => {
+                const { detail, originalIndex: idx } = item;
                 const scannedStk = scannedMap.get(idx);
                 const isScanned = !!scannedStk;
-                const partNo = detail.stkList?.[0]?.partNumber || '-';
+                const partNo = detail.partNumber || '-';
 
                 return (
                   <TouchableOpacity
@@ -593,7 +295,7 @@ const PartRegisterScreen: React.FC<Props> = ({ navigation }) => {
                 <View style={styles.scanHint}>
                   <ScanBarcode color={colors.primary} size={18} />
                   <Text style={styles.scanHintText}>
-                    {`Scan STK • ${totalBatches - totalScanned} sisa (Hold item untuk info STK)`}
+                    {`Scan STK (${currentMachineGroup.machine?.name || '-'}) • ${totalBatches - totalScanned} sisa total`}
                   </Text>
                 </View>
               }
@@ -625,7 +327,7 @@ const PartRegisterScreen: React.FC<Props> = ({ navigation }) => {
                 <View style={{ flex: 1 }}>
                   <Text style={styles.modalTitle}>Daftar STK Available</Text>
                   <Text style={styles.modalSubtitle}>
-                    PDDM: {selectedDetailForModal?.inventoryCode} | Part: {selectedDetailForModal?.stkList?.[0]?.partNumber || '-'}
+                    PDDM: {selectedDetailForModal?.inventoryCode} | Part: {selectedDetailForModal?.partNumber || '-'}
                   </Text>
                 </View>
                 <TouchableOpacity
@@ -639,11 +341,11 @@ const PartRegisterScreen: React.FC<Props> = ({ navigation }) => {
               <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false}>
                 {selectedDetailForModal?.stkList && selectedDetailForModal.stkList.length > 0 ? (
                   selectedDetailForModal.stkList.map((stk, idx) => (
-                    <View key={`${stk.stkNumber}-${idx}`} style={styles.stkModalItem}>
+                    <View key={`${stk}-${idx}`} style={styles.stkModalItem}>
                       <ScanBarcode color={colors.primary} size={18} />
                       <View style={{ flex: 1, marginLeft: 10 }}>
-                        <Text style={styles.stkModalItemNumber}>{stk.stkNumber}</Text>
-                        <Text style={styles.stkModalItemPart}>Part No: {stk.partNumber}</Text>
+                        <Text style={styles.stkModalItemNumber}>{stk}</Text>
+                        <Text style={styles.stkModalItemPart}>Part No: {selectedDetailForModal.partNumber || '-'}</Text>
                       </View>
                     </View>
                   ))
@@ -682,7 +384,7 @@ const PartRegisterScreen: React.FC<Props> = ({ navigation }) => {
             </View>
           </ScrollView>
         )}
-      </KeyboardAvoidingView>
+      </View>
     </View>
   );
 };
@@ -723,7 +425,7 @@ const DetailRow = ({ label, value }: { label: string; value: string }) => (
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  hiddenInput: { position: 'absolute', width: 1, height: 1, opacity: 0 },
+  content: { flex: 1 },
   scrollContent: { padding: 20, paddingBottom: 40 },
 
   stepIndicator: {
@@ -766,6 +468,39 @@ const styles = StyleSheet.create({
   loadingField: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 16 },
   loadingText: { fontSize: 13, color: colors.textMuted },
 
+  productOptionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: `${colors.primary}30`,
+    ...shadows.sm,
+  },
+  productOptionTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  productOptionSub: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  productSelectBadge: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  productSelectBadgeText: {
+    color: colors.textInverse,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+
   detailCard: {
     backgroundColor: colors.surface,
     borderRadius: 12,
@@ -792,6 +527,40 @@ const styles = StyleSheet.create({
     backgroundColor: `${colors.primary}10`,
   },
   detailBadgeText: { fontSize: 12, fontWeight: '600', color: colors.primary },
+
+  machineProgressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    marginTop: 2,
+    marginBottom: 2,
+  },
+  machineProgressDot: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.surface,
+    borderWidth: 1.5,
+    borderColor: `${colors.textMuted}40`,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  machineProgressDotActive: {
+    borderColor: colors.primary,
+    backgroundColor: `${colors.primary}15`,
+  },
+  machineProgressDotComplete: {
+    borderColor: colors.success,
+    backgroundColor: `${colors.success}15`,
+  },
+  machineProgressDotText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.textSecondary,
+  },
 
   scanHint: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
   scanHintText: { flex: 1, fontSize: 12, color: colors.textSecondary },

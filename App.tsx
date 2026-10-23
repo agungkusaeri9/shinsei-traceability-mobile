@@ -10,6 +10,7 @@ import AuthNavigator from './src/navigation/AuthNavigator';
 import AppInnerNavigator from './src/navigation/AppNavigator';
 import { useAuth } from './src/hooks/useAuth';
 import { initializeHttpClient } from './src/services/httpClient';
+import CheckStkScreen from './src/features/stkTracking/screens/CheckStkScreen';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 
@@ -27,6 +28,7 @@ function RootNavigator() {
       ) : (
         <RootStack.Screen name="Auth" component={AuthNavigator} />
       )}
+      <RootStack.Screen name="CheckStk" component={CheckStkScreen} />
     </RootStack.Navigator>
   );
 }

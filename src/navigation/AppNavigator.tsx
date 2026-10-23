@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import DashboardScreen from '../features/dashboard/screens/DashboardScreen';
 import ProfileScreen from '../features/profile/screens/ProfileScreen';
+import AccountDetailScreen from '../features/profile/screens/AccountDetailScreen';
 
 import {
   AppTabParamList,
@@ -25,10 +26,12 @@ import PartAcceptanceScreen from '../features/warehouse/screens/PartAcceptanceSc
 import PartRegisterScreen from '../features/smt/screens/PartRegisterScreen';
 import PartChangingScreen from '../features/smt/screens/PartChangingScreen';
 import FinishScreen from '../features/smt/screens/FinishScreen';
+import SmtAcceptanceScreen from '../features/smt/screens/SmtAcceptanceScreen';
 import QaAssyHomeScreen from '../features/qaAssy/screens/QaAssyHomeScreen';
 import QaRegisterScreen from '../features/qaAssy/screens/QaRegisterScreen';
 import QaAddPartScreen from '../features/qaAssy/screens/QaAddPartScreen';
 import QaFinishScreen from '../features/qaAssy/screens/QaFinishScreen';
+import QaAcceptanceScreen from '../features/qaAssy/screens/QaAcceptanceScreen';
 import {
   DashboardIcon,
   ProfileIcon,
@@ -38,7 +41,6 @@ import {
   QaAssyTabIcon,
   DeliveryTabIcon,
 } from '../utils/tabIcons';
-import SmtDashboard from '../features/dashboard/screens/SmtDashboard';
 import SmtHomeScreen from '../features/smt/screens/SmtHomeScreen';
 import DeliveryScreen from '../features/delivery/screens/DeliveryScreen';
 import SettingsScreen from '../features/auth/screens/SettingsScreen';
@@ -83,10 +85,12 @@ function AreaNavigator() {
       <AreaStack.Screen name="PartRegister" component={PartRegisterScreen} />
       <AreaStack.Screen name="PartChanging" component={PartChangingScreen} />
       <AreaStack.Screen name="Finish" component={FinishScreen} />
+      <AreaStack.Screen name="SmtAcceptance" component={SmtAcceptanceScreen} />
       <AreaStack.Screen name="QaAssyHome" component={QaAssyHomeScreen} />
       <AreaStack.Screen name="QaRegister" component={QaRegisterScreen} />
       <AreaStack.Screen name="QaAddPart" component={QaAddPartScreen} />
       <AreaStack.Screen name="QaFinish" component={QaFinishScreen} />
+      <AreaStack.Screen name="QaAcceptance" component={QaAcceptanceScreen} />
       <AreaStack.Screen name="DeliveryHome" component={DeliveryScreen} />
     </AreaStack.Navigator>
   );
@@ -99,6 +103,7 @@ function SmtNavigator() {
       <SmtStack.Screen name="PartRegister" component={PartRegisterScreen} />
       <SmtStack.Screen name="PartChanging" component={PartChangingScreen} />
       <SmtStack.Screen name="Finish" component={FinishScreen} />
+      <SmtStack.Screen name="SmtAcceptance" component={SmtAcceptanceScreen} />
     </SmtStack.Navigator>
   );
 }
@@ -110,6 +115,7 @@ function QaAssyNavigator() {
       <QaAssyStack.Screen name="QaRegister" component={QaRegisterScreen} />
       <QaAssyStack.Screen name="QaAddPart" component={QaAddPartScreen} />
       <QaAssyStack.Screen name="QaFinish" component={QaFinishScreen} />
+      <QaAssyStack.Screen name="QaAcceptance" component={QaAcceptanceScreen} />
     </QaAssyStack.Navigator>
   );
 }
@@ -135,6 +141,15 @@ function ProfileNavigator() {
         options={{
           title: 'Profile',
           headerShown: true,
+        }}
+      />
+      <ProfileStack.Screen
+        name="AccountDetail"
+        component={AccountDetailScreen}
+        options={{
+          title: 'Detail Akun',
+          headerShown: true,
+          headerBackTitle: 'Kembali',
         }}
       />
       <ProfileStack.Screen

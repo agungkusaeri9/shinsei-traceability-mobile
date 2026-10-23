@@ -1,5 +1,4 @@
-import React, { useState, useCallback } from 'react';
-import { useFocusEffect } from '@react-navigation/native';
+import React from 'react';
 import {
   View,
   Text,
@@ -15,26 +14,21 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '../../../types';
 import LoginForm from '../components/LoginForm';
 import { useLogin } from '../hooks/useLogin';
-import { Lock, Settings, TriangleAlert } from 'lucide-react-native';
-import { isBaseUrlSet } from '../../../utils/baseUrl';
+import {
+  Lock,
+  PackageSearch,
+  Settings,
+  TriangleAlert,
+} from 'lucide-react-native';
+import { navigateToCheckStk } from '../../../navigation/navigationHelpers';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Login'>;
 };
 
 const LoginScreen: React.FC<Props> = ({ navigation }) => {
-  const { form, errors, isLoading, handleChange, handleLogin } = useLogin();
-  const [urlNotSet, setUrlNotSet] = useState(false);
-
-  useFocusEffect(
-    useCallback(() => {
-      isBaseUrlSet().then(ok => setUrlNotSet(!ok));
-    }, [])
-  );
-
-  const onSubmit = async () => {
-    await handleLogin();
-  };
+  const { form, errors, isLoading, urlNotSet, handleChange, handleLogin } =
+    useLogin();
 
   return (
     <SafeAreaView style={styles.container}>
@@ -43,10 +37,17 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
 
-        {/* Header dengan icon setting */}
         <View style={styles.topHeader}>
-          <View style={{ width: 40 }} />
           <TouchableOpacity
+            accessibilityLabel="Buka halaman Check STK"
+            activeOpacity={0.8}
+            style={styles.checkStkButton}
+            onPress={() => navigateToCheckStk(navigation)}>
+            <PackageSearch size={18} color="#1A73E8" />
+            <Text style={styles.checkStkText}>Check STK</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            accessibilityLabel="Buka pengaturan server"
             style={styles.settingsButton}
             onPress={() => navigation.navigate('Settings')}>
             <Settings size={20} color="#666" />
@@ -79,7 +80,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
               errors={errors}
               isLoading={isLoading}
               onChange={handleChange}
-              onSubmit={onSubmit}
+              onSubmit={handleLogin}
             />
           </View>
 
@@ -98,26 +99,22 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   topHeader: {
-    flexDirection: 'column',
-    alignItems: 'flex-end',
-    // justifyContent: 'space-between',
-    // paddingHorizontal: 16,
-    // paddingVertical: 12,
-  },
-
-  logoTextSmall: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#6366F1',
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
   },
   settingsButton: {
     width: 40,
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  settingsIcon: {
-    fontSize: 24,
+    backgroundColor: '#F8FAFC',
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    borderWidth: 1,
   },
   scrollContent: {
     flexGrow: 1,
@@ -178,6 +175,22 @@ const styles = StyleSheet.create({
     color: '#92400E',
     flex: 1,
     flexWrap: 'wrap',
+  },
+  checkStkButton: {
+    alignItems: 'center',
+    backgroundColor: '#EFF6FF',
+    borderColor: '#DBEAFE',
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 8,
+    height: 40,
+    paddingHorizontal: 13,
+  },
+  checkStkText: {
+    color: '#1A73E8',
+    fontSize: 13,
+    fontWeight: '800',
   },
   welcomeText: {
     fontSize: 24,

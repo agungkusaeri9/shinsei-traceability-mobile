@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -11,10 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Input from '../../../components/Input';
 import Button from '../../../components/Button';
-import { getBaseUrl, setBaseUrl, formatUrl } from '../../../utils/baseUrl';
-import { updateBaseUrl } from '../../../services/httpClient';
-import { useConfig } from '../../../hooks/useConfig';
-import { showError, showSuccess } from '../../../services/toastService';
+import { useSettingsFlow } from '../hooks/useSettingsFlow';
 
 /** Minimal navigation shape — reusable across AuthStack and ProfileStack */
 type Props = {
@@ -22,63 +19,14 @@ type Props = {
 };
 
 const SettingsScreen: React.FC<Props> = ({ navigation }) => {
-  const [baseUrl, setBaseUrlInput] = useState('');
-  const [isTesting, setIsTesting] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const { testPing } = useConfig();
-
-  useEffect(() => {
-    const loadBaseUrl = async () => {
-      const url = await getBaseUrl();
-      setBaseUrlInput(url);
-    };
-    loadBaseUrl();
-  }, []);
-
-  const handleTest = async () => {
-    if (!baseUrl.trim()) {
-      showError('Base URL tidak boleh kosong');
-      return;
-    }
-
-    setIsTesting(true);
-    try {
-      const formatted = formatUrl(baseUrl);
-      setBaseUrlInput(formatted);
-
-      const result = await testPing(formatted);
-      if (result.success) {
-        showSuccess(result.message || 'Base URL valid & server merespon!');
-      } else {
-        showError(result.message || 'Base URL tidak dapat dijangkau');
-      }
-    } catch (error: any) {
-      showError('Gagal koneksi: ' + (error?.message || 'Error tidak diketahui'));
-    } finally {
-      setIsTesting(false);
-    }
-  };
-
-  const handleSave = async () => {
-    if (!baseUrl.trim()) {
-      showError('Base URL tidak boleh kosong');
-      return;
-    }
-
-    setIsSaving(true);
-    try {
-      const formatted = formatUrl(baseUrl);
-      setBaseUrlInput(formatted);
-      await setBaseUrl(formatted);
-      updateBaseUrl(formatted);
-      showSuccess('Base URL berhasil disimpan');
-      navigation.goBack();
-    } catch (error: any) {
-      showError('Terjadi kesalahan saat menyimpan: ' + (error?.message || ''));
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  const {
+    baseUrl,
+    isTesting,
+    isSaving,
+    handleChangeBaseUrl,
+    handleTest,
+    handleSave,
+  } = useSettingsFlow({ onSaved: () => navigation.goBack() });
 
   return (
     <SafeAreaView style={styles.container}>
@@ -92,7 +40,7 @@ const SettingsScreen: React.FC<Props> = ({ navigation }) => {
             <Input
               placeholder="Contoh: 192.168.1.50:5051"
               value={baseUrl}
-              onChangeText={setBaseUrlInput}
+              onChangeText={handleChangeBaseUrl}
               autoCapitalize="none"
               keyboardType="url"
             />

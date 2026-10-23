@@ -1,3 +1,5 @@
+import type { ApiResponse } from '../../types';
+
 export interface RegisteredPart {
   partNumber: string;
   lotNumber: string;
@@ -124,11 +126,7 @@ export interface PartAcceptanceItem {
   updatedAt: string;
 }
 
-export interface PartAcceptanceResponse {
-  status: boolean;
-  message: string;
-  data: PartAcceptanceItem;
-}
+export type PartAcceptanceResponse = ApiResponse<PartAcceptanceItem>;
 
 // ─── Stock In ──────────────────────────────────────────────────────────────
 
@@ -258,11 +256,7 @@ export interface Order {
   updatedAt: string;
 }
 
-export interface OrderResponse {
-  status: boolean;
-  message: string;
-  data: Order[];
-}
+export type OrderResponse = ApiResponse<Order[]>;
 
 export interface Product {
   id: number;
@@ -334,6 +328,7 @@ export interface StkData {
   part: StkPart;
   maker: any | null;
   latestHistory: string | null;
+  latestLocation: string;
   stockInLocation: StockInLocation;
   expiredDate: string;
   receivedDate: string;
@@ -348,11 +343,7 @@ export interface StockInLocation {
   position: string;
 }
 
-export interface StkResponse {
-  status: boolean;
-  message: string;
-  data: StkData;
-}
+export type StkResponse = ApiResponse<StkData>;
 
 export interface CheckStkLocationPayload {
   stk: string;
@@ -361,11 +352,7 @@ export interface CheckStkLocationPayload {
   bin: string;
 }
 
-export interface CheckStkLocationResponse {
-  status: boolean;
-  message: string;
-  data?: any;
-}
+export type CheckStkLocationResponse = ApiResponse<unknown>;
 
 // ─── Material Feeding (Stock Out) ────────────────────────────────────────
 

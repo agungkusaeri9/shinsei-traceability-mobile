@@ -20,7 +20,7 @@ export const loginService = async (
  * Logout current user
  */
 export const logoutService = async (): Promise<void> => {
-  await httpClient.post(API_ENDPOINTS.LOGOUT);
+  await httpClient.post<ApiResponse<null>>(API_ENDPOINTS.LOGOUT);
 };
 
 /**

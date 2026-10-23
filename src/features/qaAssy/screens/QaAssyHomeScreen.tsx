@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -13,32 +13,36 @@ import {
   PackagePlus,
   CheckCircle2,
   ChevronLeft,
+  PackageCheck,
 } from 'lucide-react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { QaAssyStackParamList } from '../../../types';
 import { colors, shadows } from '../../../theme';
-import { useAuth } from '../../../hooks/useAuth';
+import { useTimedRefresh } from '../../../hooks/useTimedRefresh';
 
 type Props = {
-  navigation: NativeStackNavigationProp<any, 'QaAssyHome'>;
+  navigation: NativeStackNavigationProp<QaAssyStackParamList, 'QaAssyHome'>;
 };
 
 const QaAssyHomeScreen: React.FC<Props> = ({ navigation }) => {
-  const { user } = useAuth();
   const insets = useSafeAreaInsets();
-  const [refreshing, setRefreshing] = useState(false);
-
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 800);
-  }, []);
+  const { refreshing, onRefresh } = useTimedRefresh(800);
 
   const menuItems = [
     {
+      key: 'QaAcceptance',
+      title: 'STK Acceptance',
+      desc: 'Scan STK Acceptance QA & Assy',
+      icon: <PackageCheck color={colors.indigo} size={28} />,
+      iconBg: `${colors.indigo}20`,
+      borderColor: `${colors.indigo}40`,
+      onPress: () => navigation.navigate('QaAcceptance'),
+    },
+    {
       key: 'QaRegister',
-      title: '1. Register',
+      title: 'Lot Register',
       desc: 'Scan Lot Number dan daftarkan',
       icon: <ClipboardCheck color={colors.indigo} size={28} />,
       iconBg: `${colors.indigo}20`,
@@ -47,7 +51,7 @@ const QaAssyHomeScreen: React.FC<Props> = ({ navigation }) => {
     },
     {
       key: 'QaAddPart',
-      title: '2. Add Part',
+      title: 'Add Part (STK) to Lot',
       desc: 'Scan Lot & beberapa Part STK',
       icon: <PackagePlus color={colors.orange} size={28} />,
       iconBg: `${colors.orange}20`,
@@ -56,7 +60,7 @@ const QaAssyHomeScreen: React.FC<Props> = ({ navigation }) => {
     },
     {
       key: 'QaFinish',
-      title: '3. Finish',
+      title: 'Finish',
       desc: 'Scan Lot & Box (pengiriman otomatis)',
       icon: <CheckCircle2 color={colors.success} size={28} />,
       iconBg: `${colors.success}20`,

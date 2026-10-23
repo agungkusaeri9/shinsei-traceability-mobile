@@ -1,13 +1,12 @@
 import httpClient from '../../../services/httpClient';
 import { API_ENDPOINTS } from '../../../services/api';
+import type { ApiResponse } from '../../../types';
 import {
   PartSearchResult,
   AreaItem,
   CustomerItem,
   CreatePartAcceptancePayload,
   PartAcceptanceResponse,
-  PartLocation,
-  PartSupplierCustomer,
   PartAcceptanceItem,
 } from '../types';
 
@@ -20,18 +19,11 @@ import {
 export const searchParts = async (
   partNo: string,
 ): Promise<PartSearchResult[]> => {
-  const response = await httpClient.get(API_ENDPOINTS.PARTS, {
-    params: { barcodeMatching: partNo, paginate: false },
-  });
-  const raw = response.data;
-  // Handle both array response and paginated response
-  if (Array.isArray(raw)) {
-    return raw;
-  }
-  if (raw?.data && Array.isArray(raw.data)) {
-    return raw.data;
-  }
-  return [];
+  const response = await httpClient.get<ApiResponse<PartSearchResult[]>>(
+    API_ENDPOINTS.PARTS,
+    { params: { barcodeMatching: partNo, paginate: false } },
+  );
+  return response.data.data;
 };
 
 /**
@@ -39,17 +31,11 @@ export const searchParts = async (
  * Endpoint: GET /api/Areas?paginate=false
  */
 export const fetchAreas = async (): Promise<AreaItem[]> => {
-  const response = await httpClient.get(API_ENDPOINTS.AREAS, {
-    params: { paginate: false },
-  });
-  const raw = response.data;
-  if (Array.isArray(raw)) {
-    return raw;
-  }
-  if (raw?.data && Array.isArray(raw.data)) {
-    return raw.data;
-  }
-  return [];
+  const response = await httpClient.get<ApiResponse<AreaItem[]>>(
+    API_ENDPOINTS.AREAS,
+    { params: { paginate: false } },
+  );
+  return response.data.data;
 };
 
 /**
@@ -57,17 +43,11 @@ export const fetchAreas = async (): Promise<AreaItem[]> => {
  * Endpoint: GET /api/Customers
  */
 export const fetchCustomers = async (): Promise<CustomerItem[]> => {
-  const response = await httpClient.get(API_ENDPOINTS.CUSTOMERS, {
-    params: { paginate: false },
-  });
-  const raw = response.data;
-  if (Array.isArray(raw)) {
-    return raw;
-  }
-  if (raw?.data && Array.isArray(raw.data)) {
-    return raw.data;
-  }
-  return [];
+  const response = await httpClient.get<ApiResponse<CustomerItem[]>>(
+    API_ENDPOINTS.CUSTOMERS,
+    { params: { paginate: false } },
+  );
+  return response.data.data;
 };
 
 /**
@@ -77,7 +57,7 @@ export const fetchCustomers = async (): Promise<CustomerItem[]> => {
 export const createPartAcceptance = async (
   payload: CreatePartAcceptancePayload,
 ): Promise<PartAcceptanceResponse> => {
-  const response = await httpClient.post<PartAcceptanceResponse>(
+  const response = await httpClient.post<ApiResponse<PartAcceptanceItem>>(
     API_ENDPOINTS.PART_ACCEPTANCES,
     payload,
   );
@@ -101,7 +81,7 @@ export const getPartDisplayLocations = (
       .map(
         loc =>
           loc.rack ||
-          [loc.shelf, loc.bin, loc.position].filter(Boolean).join(' / ') ||
+          [loc.shelf, loc.bin].filter(Boolean).join(' / ') ||
           loc.description,
       )
       .filter(Boolean) as string[];
@@ -110,7 +90,7 @@ export const getPartDisplayLocations = (
 
   return part.locations.map(
     loc =>
-      [loc.rack, loc.shelf, loc.bin, loc.position]
+      [loc.rack, loc.shelf, loc.bin]
         .filter(Boolean)
         .join(' / ') ||
       loc.description ||

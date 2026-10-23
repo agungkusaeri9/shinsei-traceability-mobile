@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -10,11 +10,11 @@ import {
 } from 'react-native';
 import { ProfileStackParamList } from '../../../types';
 import ProfileHeader from '../components/ProfileHeader';
-import { useAuth } from '../../../hooks/useAuth';
 import Modal from '../../../components/Modal';
 import Button from '../../../components/Button';
-import { Cog, Info, User } from 'lucide-react-native';
+import { Cog, User } from 'lucide-react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useProfileFlow } from '../hooks/useProfileFlow';
 
 type Props = {
   navigation: NativeStackNavigationProp<ProfileStackParamList, 'ProfileHome'>;
@@ -27,28 +27,23 @@ const menuItems = [
     label: 'Pengaturan',
     icon: <Cog size={20} color="#111827" />,
   },
-  {
-    id: 'about',
-    label: 'Tentang Aplikasi',
-    icon: <Info size={20} color="#111827" />,
-  },
+  // {
+  //   id: 'about',
+  //   label: 'Tentang Aplikasi',
+  //   icon: <Info size={20} color="#111827" />,
+  // },
 ];
 
 const ProfileScreen: React.FC<Props> = ({ navigation }) => {
-  const { user, logout } = useAuth();
-  const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 1200);
-  }, []);
-
-  const mockUser = user ?? {
-    id: '1',
-    name: 'User',
-    username: 'user',
-    role: 'admin',
-  };
+  const {
+    user,
+    refreshing,
+    showLogoutModal,
+    onRefresh,
+    openLogoutModal,
+    closeLogoutModal,
+    handleLogout,
+  } = useProfileFlow();
 
   return (
     <View style={styles.container}>
@@ -66,7 +61,7 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
           />
         }
       >
-        <ProfileHeader user={mockUser} />
+        <ProfileHeader user={user} />
 
         {/* Menu Items */}
         <View style={styles.menuContainer}>
@@ -79,7 +74,9 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
               ]}
               activeOpacity={0.7}
               onPress={() => {
-                if (item.id === 'setting') {
+                if (item.id === 'account') {
+                  navigation.navigate('AccountDetail');
+                } else if (item.id === 'setting') {
                   navigation.navigate('Settings');
                 }
               }}
@@ -95,7 +92,7 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
         <Button
           title="Keluar"
           variant="danger"
-          onPress={() => setShowLogoutModal(true)}
+          onPress={openLogoutModal}
           style={styles.logoutBtn}
         />
 
@@ -107,11 +104,8 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
         visible={showLogoutModal}
         title="Konfirmasi Keluar"
         message="Apakah Anda yakin ingin keluar dari aplikasi?"
-        onClose={() => setShowLogoutModal(false)}
-        onConfirm={() => {
-          setShowLogoutModal(false);
-          logout();
-        }}
+        onClose={closeLogoutModal}
+        onConfirm={handleLogout}
         confirmText="Keluar"
         cancelText="Batal"
         confirmVariant="danger"

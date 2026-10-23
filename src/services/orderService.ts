@@ -1,5 +1,6 @@
 import httpClient from './httpClient';
 import { API_ENDPOINTS } from './api';
+import type { ApiResponse } from '../types';
 import type {
   FetchOrdersParams,
   Order,
@@ -26,10 +27,11 @@ const unwrapOrderResponse = <T>(payload: any): T => {
 export const fetchOrders = async (
   params?: FetchOrdersParams,
 ): Promise<OrderSummary[]> => {
-  const response = await httpClient.get(API_ENDPOINTS.ORDERS, { params });
-  return unwrapOrderResponse<OrderSummary[]>(
-    response.data.data ?? response.data,
+  const response = await httpClient.get<ApiResponse<OrderSummary[]>>(
+    API_ENDPOINTS.ORDERS,
+    { params },
   );
+  return unwrapOrderResponse<OrderSummary[]>(response.data.data);
 };
 
 /**
@@ -37,6 +39,8 @@ export const fetchOrders = async (
  * @example fetchOrderById(21)
  */
 export const fetchOrderById = async (id: number): Promise<Order> => {
-  const response = await httpClient.get(`${API_ENDPOINTS.ORDERS}/${id}`);
-  return unwrapOrderResponse<Order>(response.data.data ?? response.data);
+  const response = await httpClient.get<ApiResponse<Order>>(
+    `${API_ENDPOINTS.ORDERS}/${id}`,
+  );
+  return unwrapOrderResponse<Order>(response.data.data);
 };

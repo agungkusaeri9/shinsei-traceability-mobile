@@ -3,7 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Info } from 'lucide-react-native';
 
 import { colors, shadows } from '../../../theme';
-import type { SmtOrderData } from '../../smt/types';
+import type { SmtOrderData, OrderLotProduct } from '../../smt/types';
 
 type LotInfoRowProps = {
   label: string;
@@ -23,14 +23,41 @@ const LotInfoRow: React.FC<LotInfoRowProps> = ({ label, value }) => {
 };
 
 type Props = {
-  lotInfo: SmtOrderData;
+  lotInfo?: SmtOrderData | null;
+  lotProducts?: OrderLotProduct[] | null;
 };
 
 /**
- * Kartu "Keterangan Lot" — hasil cek GET /orders/lot/{lot_number}.
+ * Kartu "Keterangan Lot" — hasil cek GET /api/orderlots/{lot_number} atau GET /api/orders/lot.
  * Dipakai bersama oleh QA Register & QA Finish.
  */
-const LotInfoCard: React.FC<Props> = ({ lotInfo }) => {
+const LotInfoCard: React.FC<Props> = ({ lotInfo, lotProducts }) => {
+  if (lotProducts && lotProducts.length > 0) {
+    const firstProduct = lotProducts[0];
+    const customerName = firstProduct.customerName || 'N/A';
+
+    return (
+      <View style={styles.lotCard}>
+        <View style={styles.lotCardHeader}>
+          <Info color={colors.indigo} size={16} />
+          <Text style={styles.lotCardTitle}>Keterangan Lot</Text>
+        </View>
+
+        <LotInfoRow label="Customer" value={customerName} />
+        <LotInfoRow label="Jumlah Produk" value={String(lotProducts.length)} />
+        {lotProducts.map((prod, index) => (
+          <LotInfoRow
+            key={`lot-prod-${prod.id || index}`}
+            label={`Produk ${index + 1}`}
+            value={`${prod.name}${prod.code ? ` (${prod.code})` : ''}`}
+          />
+        ))}
+      </View>
+    );
+  }
+
+  if (!lotInfo) return null;
+
   return (
     <View style={styles.lotCard}>
       <View style={styles.lotCardHeader}>

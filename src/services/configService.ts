@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { API_ENDPOINTS } from './api';
 import { formatUrl } from '../utils/baseUrl';
-import type { PingResult } from '../types';
+import type { ApiResponse, PingResult } from '../types';
 
 export const testPingService = async (url: string): Promise<PingResult> => {
   const formattedUrl = formatUrl(url);
@@ -10,13 +10,16 @@ export const testPingService = async (url: string): Promise<PingResult> => {
   }
 
   try {
-    const response = await axios.get(`${formattedUrl}${API_ENDPOINTS.PING}`, {
-      timeout: 7000,
-      headers: {
-        'Cache-Control': 'no-cache',
-        'Accept': 'application/json',
+    const response = await axios.get<ApiResponse<unknown>>(
+      `${formattedUrl}${API_ENDPOINTS.PING}`,
+      {
+        timeout: 7000,
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Accept': 'application/json',
+        },
       },
-    });
+    );
 
     if (response.status === 200 || response.data?.status === true) {
       return { success: true, message: 'Server merespon (Pong)' };
