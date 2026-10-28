@@ -14,6 +14,7 @@ type Props = {
   /** Primary action — e.g. "Scan Berikutnya". */
   onReset?: () => void;
   resetLabel?: string;
+  scrollable?: boolean;
 };
 
 /**
@@ -28,8 +29,9 @@ const FinishedView: React.FC<Props> = ({
   actions,
   onReset,
   resetLabel = 'Lanjutkan',
-}) => (
-  <ScrollView contentContainerStyle={styles.scrollContent}>
+  scrollable = true,
+}) => {
+  const content = (
     <View style={styles.container}>
       <View style={styles.iconBadge}>
         <CheckCircle2 color={colors.success} size={50} />
@@ -42,8 +44,14 @@ const FinishedView: React.FC<Props> = ({
       )}
       {actions}
     </View>
-  </ScrollView>
-);
+  );
+
+  return scrollable ? (
+    <ScrollView contentContainerStyle={styles.scrollContent}>{content}</ScrollView>
+  ) : (
+    content
+  );
+};
 
 const styles = StyleSheet.create({
   scrollContent: { flexGrow: 1, justifyContent: 'center' },

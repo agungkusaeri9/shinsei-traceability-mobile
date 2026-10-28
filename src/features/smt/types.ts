@@ -103,6 +103,12 @@ export interface SmtOrderDetail {
   stkList: string[];
 }
 
+export interface AvailableStkDetail {
+  inventoryCode: string;
+  partNumber: string;
+  stkList?: string[];
+}
+
 export interface SmtOrderData {
   customer: SmtCustomer;
   product: Product;

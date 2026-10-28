@@ -21,6 +21,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { QaAssyStackParamList } from '../../../types';
 import { colors, shadows } from '../../../theme';
 import { useTimedRefresh } from '../../../hooks/useTimedRefresh';
+import ProcessMenuCard from '../../../components/ProcessMenuCard';
 
 type Props = {
   navigation: NativeStackNavigationProp<QaAssyStackParamList, 'QaAssyHome'>;
@@ -109,25 +110,15 @@ const QaAssyHomeScreen: React.FC<Props> = ({ navigation }) => {
         <Text style={styles.sectionTitle}>Pilih Proses QA & Assy</Text>
         <View style={styles.actionsGrid}>
           {menuItems.map(item => (
-            <TouchableOpacity
+            <ProcessMenuCard
               key={item.key}
-              activeOpacity={0.7}
-              style={[styles.actionCard, { borderColor: item.borderColor }]}
+              title={item.title}
+              description={item.desc}
+              icon={item.icon}
+              iconBackgroundColor={item.iconBg}
+              borderColor={item.borderColor}
               onPress={item.onPress}
-            >
-              <View
-                style={[
-                  styles.actionIconBadge,
-                  { backgroundColor: item.iconBg },
-                ]}
-              >
-                {item.icon}
-              </View>
-              <View style={styles.actionTextWrap}>
-                <Text style={styles.actionTitle}>{item.title}</Text>
-                <Text style={styles.actionDesc}>{item.desc}</Text>
-              </View>
-            </TouchableOpacity>
+            />
           ))}
         </View>
       </ScrollView>
@@ -184,33 +175,6 @@ const styles = StyleSheet.create({
 
   // Actions Grid
   actionsGrid: { gap: 16 },
-  actionCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1.5,
-    ...shadows.md,
-  },
-  actionIconBadge: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 16,
-  },
-  actionTextWrap: {
-    flex: 1,
-  },
-  actionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginBottom: 4,
-  },
-  actionDesc: { fontSize: 13, color: colors.textSecondary },
 });
 
 export default QaAssyHomeScreen;

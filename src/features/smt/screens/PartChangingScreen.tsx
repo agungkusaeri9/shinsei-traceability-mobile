@@ -6,7 +6,6 @@ import {
   ScrollView,
   ActivityIndicator,
   TouchableOpacity,
-  Modal,
 } from 'react-native';
 import {
   ArrowLeftRight,
@@ -23,6 +22,11 @@ import { colors, shadows } from '../../../theme';
 import Button from '../../../components/Button';
 import SmtHeader from '../components/SmtHeader';
 import { useSmtPartChangingFlow } from '../hooks/useSmtPartChangingFlow';
+import DetailRow from '../../../components/DetailRow';
+import FinishedView from '../../../components/FinishedView';
+import FlowStepIndicator from '../../../components/FlowStepIndicator';
+import AvailableStkModal from '../components/AvailableStkModal';
+import ProductSelectionList from '../components/ProductSelectionList';
 
 type Props = {
   navigation: NativeStackNavigationProp<SmtStackParamList, 'PartChanging'>;
@@ -60,7 +64,7 @@ const PartChangingScreen: React.FC<Props> = ({ navigation }) => {
           step === 'scan_lot'
             ? navigation.canGoBack()
               ? navigation.goBack()
-              : navigation.navigate('SmtDashboard' as any)
+              : navigation.navigate('SmtHome')
             : handleReset()
         }
         rightSlot={
@@ -79,23 +83,7 @@ const PartChangingScreen: React.FC<Props> = ({ navigation }) => {
             contentContainerStyle={styles.scrollContent}
             keyboardShouldPersistTaps="handled"
           >
-            <View style={styles.stepIndicator}>
-              <View style={[styles.stepDot, styles.stepDotActive]}>
-                <Text style={styles.stepDotText}>1</Text>
-              </View>
-              <View style={styles.stepLine} />
-              <View style={styles.stepDot}>
-                <Text style={styles.stepDotTextInactive}>2</Text>
-              </View>
-              <View style={styles.stepLine} />
-              <View style={styles.stepDot}>
-                <Text style={styles.stepDotTextInactive}>3</Text>
-              </View>
-              <View style={styles.stepLine} />
-              <View style={styles.stepDot}>
-                <Text style={styles.stepDotTextInactive}>4</Text>
-              </View>
-            </View>
+            <FlowStepIndicator current={0} total={4} activeColor={colors.orange} />
 
             <View style={styles.infoCard}>
               <ScanBarcode color={colors.orange} size={24} />
@@ -135,25 +123,11 @@ const PartChangingScreen: React.FC<Props> = ({ navigation }) => {
                 <Text style={styles.loadingText}>Memuat detail product...</Text>
               </View>
             ) : (
-              <View style={{ gap: 12, marginTop: 12 }}>
-                {availableProducts.map((prod) => (
-                  <TouchableOpacity
-                    key={prod.id}
-                    activeOpacity={0.8}
-                    onPress={() => handleSelectProduct(prod)}
-                    style={styles.productOptionCard}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.productOptionTitle}>{prod.name}</Text>
-                      {prod.code ? <Text style={styles.productOptionSub}>Code: {prod.code}</Text> : null}
-                      {prod.customerName ? <Text style={styles.productOptionSub}>Customer: {prod.customerName}</Text> : null}
-                    </View>
-                    <View style={styles.productSelectBadge}>
-                      <Text style={styles.productSelectBadgeText}>Pilih</Text>
-                    </View>
-                  </TouchableOpacity>
-                ))}
-              </View>
+              <ProductSelectionList
+                products={availableProducts}
+                accentColor={colors.orange}
+                onSelect={handleSelectProduct}
+              />
             )}
           </ScrollView>
         )}
@@ -165,29 +139,13 @@ const PartChangingScreen: React.FC<Props> = ({ navigation }) => {
             contentContainerStyle={styles.scrollContent}
             keyboardShouldPersistTaps="handled"
           >
-            <View style={styles.stepIndicator}>
-              <View style={[styles.stepDot, styles.stepDotDone]}>
-                <CheckCircle2 color={colors.textInverse} size={14} />
-              </View>
-              <View style={[styles.stepLine, styles.stepLineActive]} />
-              <View style={[styles.stepDot, styles.stepDotDone]}>
-                <CheckCircle2 color={colors.textInverse} size={14} />
-              </View>
-              <View style={[styles.stepLine, styles.stepLineActive]} />
-              <View style={[styles.stepDot, styles.stepDotActive]}>
-                <Text style={styles.stepDotText}>3</Text>
-              </View>
-              <View style={styles.stepLine} />
-              <View style={styles.stepDot}>
-                <Text style={styles.stepDotTextInactive}>4</Text>
-              </View>
-            </View>
+            <FlowStepIndicator current={2} total={4} activeColor={colors.orange} />
 
             <View style={styles.detailCard}>
-              <DetailRow label="Lot Number" value={lotNumber} />
-              <DetailRow label="Customer" value={orderData.customer?.name || '-'} />
-              <DetailRow label="PCB Model" value={orderData.product?.name || '-'} />
-              <DetailRow label="Face" value={orderData.pcbModelFace} />
+              <DetailRow label="Lot Number" value={lotNumber} layout="column" />
+              <DetailRow label="Customer" value={orderData.customer?.name || '-'} layout="column" />
+              <DetailRow label="PCB Model" value={orderData.product?.name || '-'} layout="column" />
+              <DetailRow label="Face" value={orderData.pcbModelFace} layout="column" />
             </View>
 
             <View style={styles.infoCard}>
@@ -320,152 +278,39 @@ const PartChangingScreen: React.FC<Props> = ({ navigation }) => {
           </View>
         )}
 
-        {/* Modal List Available STKs on Hold */}
-        <Modal
-          visible={!!selectedItemForModal}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setSelectedItemForModal(null)}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <View style={styles.modalHeader}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.modalTitle}>Daftar STK Available</Text>
-                  <Text style={styles.modalSubtitle}>
-                    PDDM: {selectedItemForModal?.inventoryCode} | Part: {selectedItemForModal?.partNumber || '-'}
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  onPress={() => setSelectedItemForModal(null)}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                  <X color={colors.textPrimary} size={20} />
-                </TouchableOpacity>
-              </View>
-
-              <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false}>
-                {selectedItemForModal?.stkList && selectedItemForModal.stkList.length > 0 ? (
-                  selectedItemForModal.stkList.map((stk, idx) => (
-                    <View key={`${stk}-${idx}`} style={styles.stkModalItem}>
-                      <ScanBarcode color={colors.orange} size={18} />
-                      <View style={{ flex: 1, marginLeft: 10 }}>
-                        <Text style={styles.stkModalItemNumber}>{stk}</Text>
-                        <Text style={styles.stkModalItemPart}>Part No: {selectedItemForModal.partNumber || '-'}</Text>
-                      </View>
-                    </View>
-                  ))
-                ) : (
-                  <Text style={styles.emptyStkText}>Tidak ada STK yang tersedia</Text>
-                )}
-              </ScrollView>
-
-              <Button
-                title="Tutup"
-                variant="outline"
-                onPress={() => setSelectedItemForModal(null)}
-                style={{ marginTop: 16 }}
-              />
-            </View>
-          </View>
-        </Modal>
+        <AvailableStkModal
+          detail={selectedItemForModal}
+          accentColor={colors.orange}
+          onClose={() => setSelectedItemForModal(null)}
+        />
 
         {/* ── Finished ──────────────────────────────── */}
         {step === 'finished' && orderData && (
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.finishedScrollContent}
-            keyboardShouldPersistTaps="handled"
-          >
-            <View style={styles.finishedContainer}>
-              <View style={styles.finishedIconBadge}>
-                <CheckCircle2 color={colors.success} size={64} />
-              </View>
-              <Text style={styles.finishedTitle}>Part Changing Selesai!</Text>
-              <Text style={styles.finishedSubtitle}>
-                Part berhasil di-ganti
-              </Text>
-
-              <View style={styles.finishedSummary}>
-                <DetailRow label="Customer" value={orderData.customer?.name || '-'} />
-                <DetailRow label="PCB Model" value={orderData.product?.name || '-'} />
-                <DetailRow label="Product Select" value={productSelect} />
-                <DetailRow
-                  label="Total Changed"
-                  value={String(replacedCount)}
-                />
-                <DetailRow
-                  label="Total Inventory"
-                  value={String(partChangeItems.length)}
-                />
-              </View>
-
-              <Button
-                title="Kembali ke SMT"
-                onPress={handleReset}
-                style={styles.finishedBtn}
-              />
-            </View>
-          </ScrollView>
+          <FinishedView
+            title="Part Changing Selesai!"
+            subtitle="Part berhasil di-ganti"
+            resetLabel="Kembali ke SMT"
+            onReset={handleReset}
+            summary={
+              <>
+                <DetailRow label="Customer" value={orderData.customer?.name || '-'} layout="column" />
+                <DetailRow label="PCB Model" value={orderData.product?.name || '-'} layout="column" />
+                <DetailRow label="Product Select" value={productSelect} layout="column" />
+                <DetailRow label="Total Changed" value={String(replacedCount)} layout="column" />
+                <DetailRow label="Total Inventory" value={String(partChangeItems.length)} layout="column" />
+              </>
+            }
+          />
         )}
       </View>
     </View>
   );
 };
 
-const DetailRow = ({ label, value }: { label: string; value: string }) => (
-  <View style={styles.detailRow}>
-    <Text style={styles.detailLabel}>{label}</Text>
-    <Text style={styles.detailValue}>{value}</Text>
-  </View>
-);
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   content: { flex: 1 },
   scrollContent: { padding: 20, paddingBottom: 40 },
-
-  // Step Indicator
-  stepIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 24,
-    paddingTop: 8,
-  },
-  stepDot: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: `${colors.textMuted}25`,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stepDotActive: {
-    backgroundColor: colors.orange,
-  },
-  stepDotDone: {
-    backgroundColor: colors.success,
-  },
-  stepDotText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.textInverse,
-  },
-  stepDotTextInactive: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.textMuted,
-  },
-  stepLine: {
-    flex: 1,
-    height: 2,
-    backgroundColor: `${colors.textMuted}25`,
-    marginHorizontal: 4,
-  },
-  stepLineActive: {
-    backgroundColor: colors.success,
-  },
 
   // Info Card
   infoCard: {
@@ -496,39 +341,6 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
 
-  productOptionCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: `${colors.orange}30`,
-    ...shadows.sm,
-  },
-  productOptionTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  productOptionSub: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  productSelectBadge: {
-    backgroundColor: colors.orange,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  productSelectBadgeText: {
-    color: colors.textInverse,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-
   // Detail Card
   detailCard: {
     backgroundColor: colors.surface,
@@ -537,18 +349,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     ...shadows.sm,
   },
-  detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 6,
-  },
-  detailLabel: { fontSize: 13, color: colors.textSecondary },
-  detailValue: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-
   // Part Item (select_parts step)
   partItem: {
     flexDirection: 'row',
@@ -696,66 +496,6 @@ const styles = StyleSheet.create({
     color: colors.orange,
   },
 
-  // Modal Styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  modalContent: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 20,
-    width: '100%',
-    maxWidth: 400,
-    ...shadows.md,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 14,
-  },
-  modalTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  modalSubtitle: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  stkModalItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.background,
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: `${colors.textMuted}15`,
-  },
-  stkModalItemNumber: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  stkModalItemPart: {
-    fontSize: 11,
-    color: colors.textSecondary,
-    marginTop: 1,
-  },
-  emptyStkText: {
-    fontSize: 13,
-    color: colors.textMuted,
-    textAlign: 'center',
-    paddingVertical: 20,
-    fontStyle: 'italic',
-  },
-
   // Bottom Bar
   bottomBar: {
     position: 'absolute',
@@ -789,39 +529,6 @@ const styles = StyleSheet.create({
     flex: 2,
     paddingVertical: 10,
   },
-  // Finished
-  finishedScrollContent: { flexGrow: 1, justifyContent: 'center' },
-  finishedContainer: { alignItems: 'center', padding: 32, paddingBottom: 40 },
-  finishedIconBadge: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: `${colors.success}15`,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 24,
-  },
-  finishedTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: colors.textPrimary,
-    marginBottom: 8,
-  },
-  finishedSubtitle: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: 32,
-  },
-  finishedSummary: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 16,
-    width: '100%',
-    marginBottom: 32,
-    ...shadows.sm,
-  },
-  finishedBtn: { width: '100%', paddingVertical: 12 },
 });
 
 export default PartChangingScreen;

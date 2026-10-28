@@ -17,6 +17,7 @@ import InlineDropdown from '../../warehouse/components/InlineDropdown';
 import InfoBanner from '../../warehouse/components/InfoBanner';
 import DetailRow from '../../../components/DetailRow';
 import LoadingRow from '../../../components/LoadingRow';
+import FinishedView from '../../../components/FinishedView';
 import { useSmtFinishFlow } from '../hooks/useSmtFinishFlow';
 
 type Props = {
@@ -70,21 +71,13 @@ const FinishScreen: React.FC<Props> = ({ navigation }) => {
         }
       >
         {isSuccess ? (
-          <View style={styles.finishedContainer}>
-            <View style={styles.finishedIconBadge}>
-              <CheckCircle2 color={colors.success} size={64} />
-            </View>
-            <Text style={styles.finishedTitle}>SMT Finish Selesai!</Text>
-            <Text style={styles.finishedSubtitle}>
-              Lot Number {selectedLotNumber} berhasil di-finish
-            </Text>
-
-            <Button
-              title="Proses Order Lain"
-              onPress={handleReset}
-              style={styles.finishedBtn}
-            />
-          </View>
+          <FinishedView
+            title="SMT Finish Selesai!"
+            subtitle={`Lot Number ${selectedLotNumber} berhasil di-finish`}
+            resetLabel="Proses Order Lain"
+            onReset={handleReset}
+            scrollable={false}
+          />
         ) : (
           <>
             <InfoBanner
@@ -174,29 +167,6 @@ const styles = StyleSheet.create({
     marginTop: 20,
     paddingVertical: 12,
   },
-  finishedContainer: { alignItems: 'center', padding: 32, paddingTop: 60 },
-  finishedIconBadge: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: `${colors.success}15`,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 24,
-  },
-  finishedTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: colors.textPrimary,
-    marginBottom: 8,
-  },
-  finishedSubtitle: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: 32,
-  },
-  finishedBtn: { width: '100%', paddingVertical: 12 },
 });
 
 export default FinishScreen;
